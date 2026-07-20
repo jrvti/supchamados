@@ -106,34 +106,55 @@ def supabase_storage_upload(nome_arquivo, conteudo_bytes, pasta="rats"):
                          json={"name": pasta, "public": True})
     except:
         pass
+    # Tenta upload com multipart/form-data primeiro
     url = f"{SUPABASE_URL}/storage/v1/object/{pasta}/{nome_arquivo}"
     headers = {"apikey": SUPABASE_SERVICE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"}
     files = {'file': (nome_arquivo, conteudo_bytes, 'application/pdf')}
     resp = requests.post(url, headers=headers, files=files)
     if resp.ok:
+        print(f"✅ Upload {nome_arquivo} para {pasta} OK")
         return True
+    # Fallback: upload como octet-stream
     headers["Content-Type"] = "application/octet-stream"
     resp2 = requests.post(url, headers=headers, data=conteudo_bytes)
+    if resp2.ok:
+        print(f"✅ Upload (fallback) {nome_arquivo} para {pasta} OK")
+    else:
+        print(f"⚠️ Upload {nome_arquivo} falhou: {resp2.status_code} {resp2.text[:100]}")
     return resp2.ok
 
 
 def supabase_storage_download(nome_arquivo, pasta="rats"):
+    """Baixa arquivo do Storage"""
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         return None
     url = f"{SUPABASE_URL}/storage/v1/object/public/{pasta}/{nome_arquivo}"
     headers = {"apikey": SUPABASE_SERVICE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"}
     resp = requests.get(url, headers=headers)
-    return resp.content if resp.ok else None
+    if resp.ok:
+        return resp.content
+    print(f"⚠️ Download {nome_arquivo} de {pasta} falhou: {resp.status_code}")
+    return None
 
 
 def supabase_storage_list(pasta="rats"):
-    """Lista arquivos no Storage"""
+    """Lista arquivos no Storage do Supabase"""
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+        print("⚠️ SUPABASE_URL/SERVICE_KEY nao configurados")
         return []
-    url = f"{SUPABASE_URL}/storage/v1/object/{pasta}"
-    headers = {"apikey": SUPABASE_SERVICE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"}
-    resp = requests.get(url, headers=headers)
-    return resp.json() if resp.ok else []
+    try:
+        url = f"{SUPABASE_URL}/storage/v1/object/list/{pasta}"
+        headers = {"apikey": SUPABASE_SERVICE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}", "Content-Type": "application/json"}
+        body = {"limit": 100, "offset": 0, "prefix": "", "sortBy": {"column": "name", "order": "asc"}}
+        resp = requests.post(url, headers=headers, json=body)
+        if resp.ok:
+            return resp.json()
+        else:
+            print(f"⚠️ STORAGE LIST {pasta} erro {resp.status_code}: {resp.text[:200]}")
+            return []
+    except Exception as e:
+        print(f"⚠️ STORAGE LIST {pasta} exception: {e}")
+        return []
 
 
 def gerar_codigo_os():
@@ -183,8 +204,8 @@ def enviar_chamado():
                 nome_foto = f"chamado_{codigo_gerado}_{i}.{ext}"
                 try:
                     supabase_storage_upload(nome_foto, foto.read(), "chamados_fotos")
-                except:
-                    pass
+                except Exception as e:
+                    print(f"Erro upload foto: {e}")
 
     return render_template('sucesso.html', codigo_os=codigo_gerado)
 
@@ -328,7 +349,7 @@ def finalizar_chamado_rat(id):
     if pdf_salvo:
         msg += " RAT salva no storage."
     else:
-        msg += " (PDF não foi salvo - verifique config)"
+        msg += " (PDF nao foi salvo - verifique config)"
 
     return jsonify({"sucesso": True, "mensagem": msg}), 200
 
@@ -348,7 +369,7 @@ def baixar_rat(id):
             download_name=nome_arquivo,
             mimetype='application/pdf'
         )
-    return "Arquivo PDF não encontrado no storage", 404
+    return "Arquivo PDF nao encontrado no storage", 404
 
 
 @app.route('/chamado/<int:id>/excluir', methods=['POST'])
@@ -368,7 +389,7 @@ def modelo_rat():
     caminho_arquivo = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modelo_rat.pdf')
     if os.path.exists(caminho_arquivo):
         return send_file(caminho_arquivo, mimetype='application/pdf')
-    return "Arquivo não encontrado", 404
+    return "Arquivo nao encontrado", 404
 
 
 @app.route('/foto_chamado/<path:nome_arquivo>')
@@ -379,7 +400,7 @@ def foto_chamado(nome_arquivo):
         ext = nome_arquivo.rsplit('.', 1)[-1].lower() if '.' in nome_arquivo else 'jpeg'
         mimetype = f'image/{ext}' if ext in ['jpg', 'jpeg', 'png', 'gif', 'webp'] else 'image/jpeg'
         return send_file(io.BytesIO(dados), mimetype=mimetype)
-    return "Foto não encontrada", 404
+    return "Foto nao encontrada", 404
 
 
 @app.route('/logs')
@@ -433,7 +454,7 @@ def dashboard():
 def bulk_excluir():
     """Excluir múltiplos chamados finalizados"""
     if not session.get('logado') or session.get('usuario') != 'tecsenior':
-        return jsonify({"erro": "Apenas técnico sênior"}), 403
+        return jsonify({"erro": "Apenas tecnico senior"}), 403
 
     data = request.get_json()
     ids = data.get('ids', [])
