@@ -17,9 +17,27 @@
         .info-row:last-child { border-bottom:none; margin-bottom:0; padding-bottom:0; }
         .label { font-weight:bold; text-transform:uppercase; font-size:12px; color:var(--texto-secundario); display:block; margin-bottom:2px; }
         .descricao-longa { background:var(--bg-container); border:2px solid var(--border-cor); padding:15px; font-size:14px; line-height:1.6; white-space:pre-wrap; margin-top:5px; }
-        .fotos-box { display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
-        .foto-item { width:80px; height:80px; border:2px solid var(--border-cor); overflow:hidden; cursor:pointer; }
-        .foto-item img { width:100%; height:100%; object-fit:cover; }
+        
+        /* FOTOS - THUMBNAILS */
+        .fotos-box { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+        .foto-thumb { width:90px; height:90px; border:2px solid var(--border-cor); overflow:hidden; cursor:pointer; position:relative; transition:transform .15s,box-shadow .15s; }
+        .foto-thumb:hover { transform:scale(1.08); box-shadow:3px 3px 0 var(--border-cor); z-index:2; }
+        .foto-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+        .foto-thumb .zoom-icon { position:absolute; bottom:4px; right:4px; background:rgba(0,0,0,0.7); color:#fff; font-size:10px; padding:2px 5px; border-radius:2px; pointer-events:none; }
+
+        /* LIGHTBOX / MODAL */
+        .lightbox-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.92); z-index:99999; justify-content:center; align-items:center; flex-direction:column; padding:40px; box-sizing:border-box; }
+        .lightbox-overlay.active { display:flex; }
+        .lightbox-close { position:absolute; top:20px; right:30px; color:#fff; font-size:40px; cursor:pointer; font-weight:bold; line-height:1; z-index:10; background:none; border:none; padding:10px; }
+        .lightbox-close:hover { color:#ff4444; }
+        .lightbox-img-wrapper { max-width:90vw; max-height:80vh; display:flex; justify-content:center; align-items:center; }
+        .lightbox-img-wrapper img { max-width:100%; max-height:80vh; object-fit:contain; border:3px solid #333; border-radius:4px; box-shadow:0 0 40px rgba(0,0,0,0.5); }
+        .lightbox-counter { color:#aaa; font-size:14px; margin-top:15px; font-weight:bold; letter-spacing:1px; }
+        .lightbox-nav { position:absolute; top:50%; transform:translateY(-50%); color:#fff; font-size:50px; cursor:pointer; font-weight:bold; padding:10px 20px; background:rgba(0,0,0,0.3); border-radius:4px; user-select:none; transition:background .2s; }
+        .lightbox-nav:hover { background:rgba(255,255,255,0.2); }
+        .lightbox-prev { left:20px; }
+        .lightbox-next { right:20px; }
+
         .log-item { font-size:12px; padding:5px 0; border-bottom:1px dashed var(--border-cor); color:var(--texto-secundario); }
         .log-item:last-child { border-bottom:none; }
     </style>
@@ -32,6 +50,7 @@
                 <button id="theme-toggle" class="btn-theme-toggle">🌙 Modo Escuro</button>
                 <a href="/admin" class="btn-voltar">Voltar</a>
             </div>
+
         <div class="info-box">
             <div class="info-row"><span class="label">Solicitante</span><strong>{{ chamado.cliente }}</strong></div>
             <div class="info-row"><span class="label">Empresa / Condomínio</span>{{ chamado.empresa }}</div>
@@ -40,20 +59,43 @@
             <div class="info-row"><span class="label">Status Atual</span><strong>{{ chamado.status|upper }}</strong></div>
             <div class="info-row"><span class="label">Descrição Completa da Ocorrência</span><div class="descricao-longa">{{ chamado.descricao }}</div>
         </div>
+
         {% if chamado.tecnico_responsavel and chamado.tecnico_responsavel != 'Nenhum' %}
         <div class="info-box">
             <div class="info-row"><span class="label">Técnico Responsável</span>{% if chamado.tecnico_responsavel == 'tecnicon1' %}N1 - Maciel{% elif chamado.tecnico_responsavel == 'tecnicon2' %}N2 - Adams{% elif chamado.tecnico_responsavel == 'tecsenior' %}N3 - Jaime{% else %}{{ chamado.tecnico_responsavel }}{% endif %}</div>
         {% endif %}
+
         {% if fotos %}
         <div class="info-box">
-            <div class="info-row"><span class="label">Fotos Anexadas ({{ fotos|length }})</span><div class="fotos-box">{% for foto in fotos %}<a href="/foto_chamado/{{ foto.name }}" target="_blank" class="foto-item"><img src="/foto_chamado/{{ foto.name }}" alt="Foto"></a>{% endfor %}</div>
+            <div class="info-row">
+                <span class="label">Fotos Anexadas ({{ fotos|length }})</span>
+                <div class="fotos-box" id="fotosContainer">
+                    {% for foto in fotos %}
+                    <div class="foto-thumb" data-index="{{ loop.index0 }}" onclick="abrirLightbox({{ loop.index0 }})">
+                        <img src="/foto_chamado/{{ foto.name }}" alt="Foto {{ loop.index }}">
+                        <span class="zoom-icon">🔍</span>
+                    </div>
+                    {% endfor %}
+                </div>
         </div>
         {% endif %}
+
         {% if logs %}
         <div class="info-box">
             <div class="info-row"><span class="label">Histórico de Atividades</span>{% for log in logs %}<div class="log-item"><strong>{{ log.data[:16] }}</strong> — {% if log.acao == 'login' %}🔓 Login{% elif log.acao == 'logout' %}🔒 Logout{% elif log.acao == 'alteracao' %}✏️ Alteração{% elif log.acao == 'finalizacao' %}✅ Finalização{% elif log.acao == 'exclusao' %}🗑️ Exclusão{% else %}{{ log.acao }}{% endif %}: {{ log.detalhes }}</div>{% endfor %}</div>
         {% endif %}
     </div>
+
+    <!-- LIGHTBOX -->
+    <div class="lightbox-overlay" id="lightbox" onclick="fecharLightboxFora(event)">
+        <button class="lightbox-close" onclick="fecharLightbox()">&times;</button>
+        <span class="lightbox-nav lightbox-prev" onclick="navegarLightbox(-1)">&#8249;</span>
+        <span class="lightbox-nav lightbox-next" onclick="navegarLightbox(1)">&#8250;</span>
+        <div class="lightbox-img-wrapper" id="lightboxImgWrapper">
+            <img id="lightboxImg" src="" alt="Foto ampliada">
+        </div>
+        <div class="lightbox-counter" id="lightboxCounter"></div>
+
     <script>
         const t=document.getElementById('theme-toggle'),c=localStorage.getItem('theme');
         if(c==='dark'){document.documentElement.setAttribute('data-theme','dark');t.textContent='☀️ Modo Claro';}
@@ -63,6 +105,51 @@
             }else{
                 document.documentElement.removeAttribute('data-theme');t.textContent='🌙 Modo Escuro';localStorage.setItem('theme','light');
             }
+        });
+
+        // === LIGHTBOX ===
+        let fotosSrc = [];
+        {% for foto in fotos %}
+        fotosSrc.push('/foto_chamado/{{ foto.name }}');
+        {% endfor %}
+        let indiceAtual = 0;
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightboxImg');
+        const lightboxCounter = document.getElementById('lightboxCounter');
+
+        function abrirLightbox(index) {
+            if (fotosSrc.length === 0) return;
+            indiceAtual = index;
+            atualizarLightbox();
+            lightbox.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function fecharLightbox() {
+            lightbox.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        function fecharLightboxFora(e) {
+            if (e.target === lightbox) fecharLightbox();
+        }
+
+        function navegarLightbox(direcao) {
+            indiceAtual = (indiceAtual + direcao + fotosSrc.length) % fotosSrc.length;
+            atualizarLightbox();
+        }
+
+        function atualizarLightbox() {
+            lightboxImg.src = fotosSrc[indiceAtual];
+            lightboxCounter.textContent = (indiceAtual + 1) + ' / ' + fotosSrc.length;
+        }
+
+        // Teclado: ESC fecha, setas navega
+        document.addEventListener('keydown', function(e) {
+            if (!lightbox.classList.contains('active')) return;
+            if (e.key === 'Escape') fecharLightbox();
+            if (e.key === 'ArrowLeft') navegarLightbox(-1);
+            if (e.key === 'ArrowRight') navegarLightbox(1);
         });
     </script>
 </body>
