@@ -2,10 +2,10 @@ import os
 import random
 import string
 import io
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import requests
+import psycopg
+from psycopg.rows import dict_row
 from flask import Flask, render_template, request, send_file, redirect, url_for, session, jsonify
-from supabase import create_client, Client
 
 app = Flask(__name__)
 app.secret_key = 'chave_secreta_jrvti_2026'
@@ -15,21 +15,55 @@ SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
-supabase: Client = None
-if SUPABASE_URL and SUPABASE_KEY:
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def get_db_connection():
-    """Conecta ao PostgreSQL do Supabase"""
-    return psycopg2.connect(DATABASE_URL, sslmode='require')
+    """Conecta ao PostgreSQL do Supabase (via psycopg v3 - compatível Python 3.14)"""
+    return psycopg.connect(DATABASE_URL, sslmode='require')
+
+
+def supabase_storage_upload(nome_arquivo, conteudo_bytes):
+    """Faz upload PDF para o Storage do Supabase via API REST"""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return False
+    # Cria o bucket 'rats' se não existir (tentativa silenciosa)
+    try:
+        bucket_url = f"{SUPABASE_URL}/storage/v1/bucket/rats"
+        headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+        requests.post(bucket_url, headers=headers, json={"name": "rats", "public": True})
+    except:
+        pass
+    # Upload do arquivo
+    url = f"{SUPABASE_URL}/storage/v1/object/rats/{nome_arquivo}"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/pdf"
+    }
+    resp = requests.post(url, headers=headers, data=conteudo_bytes)
+    return resp.ok
+
+
+def supabase_storage_download(nome_arquivo):
+    """Baixa PDF do Storage do Supabase via API REST"""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return None
+    url = f"{SUPABASE_URL}/storage/v1/object/public/rats/{nome_arquivo}"
+    headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+    resp = requests.get(url, headers=headers)
+    if resp.ok:
+        return resp.content
+    return None
+
 
 def gerar_codigo_os():
     caracteres = string.ascii_uppercase + string.digits
     return f"OS-{''.join(random.choice(caracteres) for _ in range(6))}"
 
+
 @app.route('/')
 def index():
     return render_template('cliente.html')
+
 
 @app.route('/enviar_chamado', methods=['POST'])
 def enviar_chamado():
@@ -52,6 +86,7 @@ def enviar_chamado():
     conn.close()
     return render_template('sucesso.html', codigo_os=codigo_gerado)
 
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -62,19 +97,23 @@ def login():
         return render_template('login.html', erro="Credenciais incorretas.")
     return render_template('login.html', erro=None)
 
+
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
+
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
-    if not session.get('logado'): return redirect(url_for('login'))
+    if not session.get('logado'):
+        return redirect(url_for('login'))
     conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur = conn.cursor(row_factory=dict_row)
     if request.method == 'POST':
         cur.execute("UPDATE chamados SET status = %s, tecnico_responsavel = %s, urgencia = %s WHERE id = %s",
-                    (request.form.get('status'), request.form.get('tecnico_responsavel'), request.form.get('urgencia'), request.form.get('id')))
+                    (request.form.get('status'), request.form.get('tecnico_responsavel'),
+                     request.form.get('urgencia'), request.form.get('id')))
         conn.commit()
     busca = request.args.get('busca', '')
     query = "SELECT * FROM chamados WHERE status != 'Finalizado'"
@@ -86,11 +125,13 @@ def admin():
     conn.close()
     return render_template('admin.html', chamados=chamados, tecnico_atual=session.get('usuario'), busca=busca)
 
+
 @app.route('/arquivados')
 def arquivados():
-    if not session.get('logado'): return redirect(url_for('login'))
+    if not session.get('logado'):
+        return redirect(url_for('login'))
     conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur = conn.cursor(row_factory=dict_row)
     busca = request.args.get('busca', '')
     query = "SELECT * FROM chamados WHERE status = 'Finalizado'"
     if busca:
@@ -101,104 +142,98 @@ def arquivados():
     conn.close()
     return render_template('arquivados.html', chamados=chamados)
 
+
 @app.route('/rat_avulsa')
 def rat_avulsa():
-    if not session.get('logado'): return redirect(url_for('login'))
+    if not session.get('logado'):
+        return redirect(url_for('login'))
     return render_template('rat.html', chamado={"id": 0, "codigo_os": gerar_codigo_os()})
+
 
 @app.route('/chamado/<int:id>')
 def detalhes_chamado(id):
-    if not session.get('logado'): return redirect(url_for('login'))
+    if not session.get('logado'):
+        return redirect(url_for('login'))
     conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur = conn.cursor(row_factory=dict_row)
     cur.execute("SELECT * FROM chamados WHERE id = %s", (id,))
     chamado = cur.fetchone()
     cur.close()
     conn.close()
-    if not chamado: return "Chamado não encontrado", 404
+    if not chamado:
+        return "Chamado não encontrado", 404
     return render_template('detalhes.html', chamado=chamado)
+
 
 @app.route('/chamado/<int:id>/rat')
 def rat_chamado(id):
-    if not session.get('logado'): return redirect(url_for('login'))
+    if not session.get('logado'):
+        return redirect(url_for('login'))
     conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur = conn.cursor(row_factory=dict_row)
     cur.execute("SELECT * FROM chamados WHERE id = %s", (id,))
     chamado = cur.fetchone()
     cur.close()
     conn.close()
-    if not chamado: return "Chamado não encontrado", 404
+    if not chamado:
+        return "Chamado não encontrado", 404
     return render_template('rat.html', chamado=chamado)
+
 
 @app.route('/chamado/<int:id>/finalizar', methods=['POST'])
 def finalizar_chamado_rat(id):
-    if not session.get('logado'): return jsonify({"erro": "Não autorizado"}), 401
-    
-    pdf_url = None
-    if 'pdf' in request.files and supabase:
+    if not session.get('logado'):
+        return jsonify({"erro": "Não autorizado"}), 401
+
+    pdf_salvo = False
+    if 'pdf' in request.files and SUPABASE_URL and SUPABASE_KEY:
         arquivo_pdf = request.files['pdf']
         pdf_bytes = arquivo_pdf.read()
         nome_arquivo = f'RAT_OS_{id}.pdf'
-        
         try:
-            # Upload PDF para o Storage do Supabase
-            bucket_name = 'rats'
-            
-            # Verifica se o bucket existe, se não, cria
-            try:
-                supabase.storage.get_bucket(bucket_name)
-            except:
-                supabase.storage.create_bucket(bucket_name, {'public': True})
-            
-            # Faz upload do arquivo
-            supabase.storage.from_(bucket_name).upload(
-                nome_arquivo,
-                pdf_bytes,
-                {'content-type': 'application/pdf'}
-            )
-            
-            # Gera URL pública
-            pdf_url = f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{nome_arquivo}"
+            pdf_salvo = supabase_storage_upload(nome_arquivo, pdf_bytes)
         except Exception as e:
             print(f"Erro ao enviar PDF: {e}")
-    
+
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("UPDATE chamados SET status = 'Finalizado' WHERE id = %s", (id,))
     conn.commit()
     cur.close()
     conn.close()
-    
-    return jsonify({
-        "sucesso": True, 
-        "mensagem": "Chamado arquivado com sucesso!",
-        "pdf_url": pdf_url
-    }), 200
+
+    msg = "Chamado arquivado com sucesso!"
+    if pdf_salvo:
+        msg += " RAT salva no storage."
+    else:
+        msg += " (PDF não foi salvo - verifique config do Supabase)"
+
+    return jsonify({"sucesso": True, "mensagem": msg}), 200
+
 
 @app.route('/baixar_rat/<int:id>')
 def baixar_rat(id):
-    if not session.get('logado'): return redirect(url_for('login'))
-    
-    if supabase and SUPABASE_URL:
-        try:
-            nome_arquivo = f'RAT_OS_{id}.pdf'
-            # Baixa o PDF do Storage do Supabase
-            pdf_data = supabase.storage.from_('rats').download(nome_arquivo)
-            return send_file(
-                io.BytesIO(pdf_data),
-                as_attachment=True,
-                download_name=nome_arquivo,
-                mimetype='application/pdf'
-            )
-        except Exception as e:
-            print(f"Erro ao baixar PDF: {e}")
-            return "Arquivo PDF não encontrado no storage", 404
-    
-    return "Serviço de storage não configurado", 500
+    if not session.get('logado'):
+        return redirect(url_for('login'))
+
+    nome_arquivo = f'RAT_OS_{id}.pdf'
+    pdf_data = supabase_storage_download(nome_arquivo)
+
+    if pdf_data:
+        return send_file(
+            io.BytesIO(pdf_data),
+            as_attachment=True,
+            download_name=nome_arquivo,
+            mimetype='application/pdf'
+        )
+
+    return "Arquivo PDF não encontrado no storage", 404
+
 
 @app.route('/chamado/<int:id>/excluir', methods=['POST'])
 def excluir_chamado(id):
-    if not session.get('logado'): return redirect(url_for('login'))
+    if not session.get('logado'):
+        return redirect(url_for('login'))
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("DELETE FROM chamados WHERE id = %s", (id,))
@@ -207,6 +242,7 @@ def excluir_chamado(id):
     conn.close()
     return redirect(url_for('admin'))
 
+
 @app.route('/modelo_base_pdf')
 def modelo_rat():
     caminho_arquivo = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'modelo_rat.pdf')
@@ -214,11 +250,13 @@ def modelo_rat():
         return send_file(caminho_arquivo, mimetype='application/pdf')
     return "Arquivo não encontrado", 404
 
+
 @app.route('/dashboard')
 def dashboard():
-    if not session.get('logado'): return redirect(url_for('login'))
+    if not session.get('logado'):
+        return redirect(url_for('login'))
     conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    cur = conn.cursor(row_factory=dict_row)
     cur.execute("SELECT COUNT(*) as total FROM chamados WHERE status != 'Finalizado'")
     total_ativos = cur.fetchone()['total']
     cur.execute("SELECT COUNT(*) as total FROM chamados WHERE status = 'Finalizado'")
@@ -231,7 +269,10 @@ def dashboard():
     top_clientes = cur.fetchall()
     cur.close()
     conn.close()
-    return render_template('dashboard.html', total_ativos=total_ativos, total_fechados=total_fechados, total_criticos=total_criticos, ranking_tecnicos=ranking_tecnicos, top_clientes=top_clientes)
+    return render_template('dashboard.html', total_ativos=total_ativos, total_fechados=total_fechados,
+                           total_criticos=total_criticos, ranking_tecnicos=ranking_tecnicos,
+                           top_clientes=top_clientes)
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
