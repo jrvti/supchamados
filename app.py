@@ -17,29 +17,34 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 
 
 def get_db_connection():
-    """Conecta ao PostgreSQL do Supabase (via psycopg v3)"""
-    if not DATABASE_URL:
+    """Conecta ao PostgreSQL do Supabase"""
+    url = DATABASE_URL
+    if not url:
         raise ValueError("DATABASE_URL não configurada!")
-    
-    # A URL do Supabase já vem com sslmode=require no final
-    # Ex: postgresql://postgres:senha@db.xxx.supabase.co:5432/postgres?sslmode=require
+
+    # Remove espaços e quebras de linha que podem vir do Render
+    url = url.strip()
+
+    # O psycopg v3 aceita sslmode=require na URL
+    if 'sslmode' not in url:
+        if '?' in url:
+            url += '&sslmode=require'
+        else:
+            url += '?sslmode=require'
+
     try:
-        conn = psycopg.connect(DATABASE_URL)
+        conn = psycopg.connect(url)
         return conn
     except Exception as e:
-        print(f"❌ ERRO AO CONECTAR NO BANCO: {e}")
-        # Tenta sem sslmode se falhar
-        try:
-            clean_url = DATABASE_URL.split('?')[0]  # Remove query params
-            conn = psycopg.connect(clean_url, sslmode='require')
-            return conn
-        except Exception as e2:
-            print(f"❌ SEGUNDA TENTATIVA TAMBÉM FALHOU: {e2}")
-            raise
+        print(f"❌ ERRO AO CONECTAR: {e}")
+        print("💡 Dica: Use a 'Direct connection' do Supabase:")
+        print("   postgresql://postgres:[SUA_SENHA]@db.[PROJECT_REF].supabase.co:5432/postgres")
+        print("   O Project Ref está na URL do projeto: https://supabase.com/dashboard/project/[AQUI]")
+        raise
 
 
 def init_db():
-    """Cria a tabela chamados se não existir (executado na inicialização)"""
+    """Cria a tabela chamados se não existir"""
     try:
         print("🔄 Inicializando banco de dados...")
         conn = get_db_connection()
@@ -63,24 +68,21 @@ def init_db():
         conn.commit()
         cur.close()
         conn.close()
-        print("✅ Tabela 'chamados' verificada/criada com sucesso!")
+        print("✅ Tabela 'chamados' pronta!")
     except Exception as e:
         print(f"⚠️  Erro ao inicializar banco: {e}")
-        print("⚠️  O site pode funcionar, mas a página admin dará erro 500")
 
 
 def supabase_storage_upload(nome_arquivo, conteudo_bytes):
     """Faz upload PDF para o Storage do Supabase via API REST"""
     if not SUPABASE_URL or not SUPABASE_KEY:
         return False
-    # Cria o bucket 'rats' se não existir (tentativa silenciosa)
     try:
         bucket_url = f"{SUPABASE_URL}/storage/v1/bucket/rats"
         headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
         requests.post(bucket_url, headers=headers, json={"name": "rats", "public": True})
     except:
         pass
-    # Upload do arquivo
     url = f"{SUPABASE_URL}/storage/v1/object/rats/{nome_arquivo}"
     headers = {
         "apikey": SUPABASE_KEY,
@@ -327,4 +329,3 @@ init_db()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
-
