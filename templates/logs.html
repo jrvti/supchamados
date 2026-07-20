@@ -76,10 +76,11 @@
         </table>
 
         <div class="paginacao">
-            {% if pagina > 1 %}
+            {% if pagina and pagina > 1 %}
                 <a href="/logs?pagina={{ pagina - 1 }}">⬅ Anterior</a>
             {% endif %}
-            <a href="/logs?pagina={{ pagina + 1 }}">Próxima ➡</a>
+            <a href="/logs?pagina={{ (pagina|default(1)) + 1 }}">Próxima ➡</a>
         </div>
+    </div>
 </body>
 </html>
