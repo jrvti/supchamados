@@ -388,8 +388,12 @@ def visualizar_logs():
     if not session.get('logado'):
         return redirect(url_for('login'))
 
-    logs = api_get("logs", {"order": "id.desc", "limit": "100"})
-    return render_template('logs.html', logs=logs)
+    pagina = request.args.get('pagina', 1, type=int)
+    if pagina < 1:
+        pagina = 1
+    offset = (pagina - 1) * 100
+    logs = api_get("logs", {"order": "id.desc", "limit": "100", "offset": str(offset)})
+    return render_template('logs.html', logs=logs, pagina=pagina)
 
 
 @app.route('/dashboard')
@@ -407,19 +411,15 @@ def dashboard():
     })
     total_criticos = len(criticos)
 
-    ranking_tecnicos = api_get("chamados", {
-        "status": "eq.Finalizado",
-        "select": "tecnico_responsavel,count",
-        "group": "tecnico_responsavel",
-        "order": "count.desc"
-    })
+    # Carrega dados para ranking (agregação server-side)
+    chamados_fechados = api_get("chamados", {"status": "eq.Finalizado", "select": "tecnico_responsavel"})
+    from collections import Counter
+    contagem_tecnicos = Counter(c.get('tecnico_responsavel', 'Nenhum') for c in chamados_fechados if c.get('tecnico_responsavel'))
+    ranking_tecnicos = [{"tecnico_responsavel": k, "qtd": v} for k, v in contagem_tecnicos.most_common()]
 
-    top_clientes = api_get("chamados", {
-        "select": "empresa,count",
-        "group": "empresa",
-        "order": "count.desc",
-        "limit": 3
-    })
+    chamados_todos = api_get("chamados", {"select": "empresa"})
+    contagem_empresas = Counter(c.get('empresa', 'N/A') for c in chamados_todos if c.get('empresa'))
+    top_clientes = [{"empresa": k, "qtd": v} for k, v in contagem_empresas.most_common(3)]
 
     return render_template('dashboard.html',
                           total_ativos=total_ativos,
