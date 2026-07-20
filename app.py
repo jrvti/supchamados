@@ -94,7 +94,7 @@ def init_db():
 
 
 def supabase_storage_upload(nome_arquivo, conteudo_bytes, pasta="rats"):
-    """Faz upload PDF para o Storage do Supabase"""
+    """Faz upload para o Storage do Supabase"""
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         return False
     try:
