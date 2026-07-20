@@ -2,9 +2,11 @@ import os
 import random
 import string
 import io
+import socket
 import requests
 import psycopg
 from psycopg.rows import dict_row
+from urllib.parse import urlparse
 from flask import Flask, render_template, request, send_file, redirect, url_for, session, jsonify
 
 app = Flask(__name__)
@@ -17,29 +19,37 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 
 
 def get_db_connection():
-    """Conecta ao PostgreSQL do Supabase"""
+    """Conecta ao PostgreSQL do Supabase (forçando IPv4)"""
     url = DATABASE_URL
     if not url:
         raise ValueError("DATABASE_URL não configurada!")
 
-    # Remove espaços e quebras de linha que podem vir do Render
     url = url.strip()
 
-    # O psycopg v3 aceita sslmode=require na URL
+    # Garante sslmode=require
     if 'sslmode' not in url:
-        if '?' in url:
-            url += '&sslmode=require'
-        else:
-            url += '?sslmode=require'
+        url += '&' if '?' in url else '?'
+        url += 'sslmode=require'
+
+    # --- FORÇA RESOLUÇÃO IPv4 ---
+    # O Render não suporta IPv6, e o Supabase resolve para IPv6
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if hostname:
+            # Resolve apenas IPv4 (AF_INET)
+            ips = socket.getaddrinfo(hostname, 5432, socket.AF_INET)
+            if ips:
+                ipv4 = ips[0][4][0]
+                url = url.replace(f'@{hostname}', f'@{ipv4}')
+    except Exception as e:
+        print(f"⚠️  Aviso - não foi possível forçar IPv4: {e}")
 
     try:
         conn = psycopg.connect(url)
         return conn
     except Exception as e:
         print(f"❌ ERRO AO CONECTAR: {e}")
-        print("💡 Dica: Use a 'Direct connection' do Supabase:")
-        print("   postgresql://postgres:[SUA_SENHA]@db.[PROJECT_REF].supabase.co:5432/postgres")
-        print("   O Project Ref está na URL do projeto: https://supabase.com/dashboard/project/[AQUI]")
         raise
 
 
