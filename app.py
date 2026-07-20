@@ -19,31 +19,87 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 
 
 def get_db_connection():
-    """Conecta ao PostgreSQL do Supabase (forçando IPv4)"""
+    """Conecta ao PostgreSQL do Supabase.
+    Remove quebras de linha, força sslmode=require.
+    Se o hostname só tiver IPv6, usa o Session Pooler que tem IPv4.
+    """
     url = DATABASE_URL
     if not url:
         raise ValueError("DATABASE_URL não configurada!")
 
+    # Limpa a URL (remove espaços, quebras de linha)
     url = url.strip()
-
+    
     # Garante sslmode=require
     if 'sslmode' not in url:
         url += '&' if '?' in url else '?'
         url += 'sslmode=require'
 
-    # --- FORÇA RESOLUÇÃO IPv4 ---
-    # O Render não suporta IPv6, e o Supabase resolve para IPv6
+    # Extrai informações da URL
+    parsed = urlparse(url)
+    hostname = parsed.hostname or ''
+    
+    # Detecta se é uma URL do Supabase (db.XXXXX.supabase.co ou pooler)
+    is_supabase = 'supabase.co' in hostname
+    project_ref = None
+    
+    if is_supabase:
+        # Extrai project_ref do hostname
+        # Formatos possíveis:
+        #   db.XXXXXXXXXX.supabase.co  (Direct Connection)
+        #   aws-0-sa-east-1.pooler.supabase.com (Session Pooler)
+        if hostname.startswith('db.'):
+            parts = hostname.split('.')
+            if len(parts) >= 2:
+                project_ref = parts[1]
+        elif 'pooler.supabase.com' in hostname:
+            # Já é pooler, extrai do usuário
+            user = parsed.username or ''
+            if user and user.startswith('postgres.'):
+                project_ref = user.replace('postgres.', '')
+    
+    # Se não conseguiu extrair project_ref, tenta da SUPABASE_URL
+    if not project_ref and SUPABASE_URL:
+        # SUPABASE_URL = https://dbsrkidmenhnadtgwkon.supabase.co
+        ref_match = SUPABASE_URL.replace('https://', '').split('.')[0]
+        if ref_match:
+            project_ref = ref_match
+
+    # Verifica se o hostname resolve para IPv4
+    tem_ipv4 = False
     try:
-        parsed = urlparse(url)
-        hostname = parsed.hostname
-        if hostname:
-            # Resolve apenas IPv4 (AF_INET)
-            ips = socket.getaddrinfo(hostname, 5432, socket.AF_INET)
-            if ips:
-                ipv4 = ips[0][4][0]
-                url = url.replace(f'@{hostname}', f'@{ipv4}')
-    except Exception as e:
-        print(f"⚠️  Aviso - não foi possível forçar IPv4: {e}")
+        socket.getaddrinfo(hostname, 5432, socket.AF_INET)
+        tem_ipv4 = True
+    except:
+        tem_ipv4 = False
+
+    # Verifica se resolve para IPv6
+    tem_ipv6 = False
+    try:
+        socket.getaddrinfo(hostname, 5432, socket.AF_INET6)
+        tem_ipv6 = True
+    except:
+        tem_ipv6 = False
+
+    # --- DECISÃO: qual endpoint usar? ---
+    if is_supabase and not tem_ipv4 and tem_ipv6 and project_ref:
+        # O hostname só tem IPv6! Usar Session Pooler (IPv4)
+        password = parsed.password or ''
+        pooler_user = f"postgres.{project_ref}"
+        pooler_url = (
+            f"postgresql://{pooler_user}:{password}"
+            f"@aws-0-sa-east-1.pooler.supabase.com"
+            f":6543/postgres?sslmode=require"
+        )
+        print(f"🔁 DNS só IPv6 → usando Session Pooler: postgres.{project_ref}@pooler.supabase.com:6543")
+        url = pooler_url
+    elif tem_ipv4 and hostname:
+        # Tem IPv4, força o uso do IP direto (evita resolução DNS)
+        try:
+            ipv4 = socket.getaddrinfo(hostname, 5432, socket.AF_INET)[0][4][0]
+            url = url.replace(f'@{hostname}', f'@{ipv4}')
+        except:
+            pass
 
     try:
         conn = psycopg.connect(url)
@@ -56,7 +112,6 @@ def get_db_connection():
 def init_db():
     """Cria a tabela chamados se não existir"""
     try:
-        print("🔄 Inicializando banco de dados...")
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
@@ -78,7 +133,6 @@ def init_db():
         conn.commit()
         cur.close()
         conn.close()
-        print("✅ Tabela 'chamados' pronta!")
     except Exception as e:
         print(f"⚠️  Erro ao inicializar banco: {e}")
 
