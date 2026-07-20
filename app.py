@@ -2,7 +2,6 @@ import os
 import random
 import string
 import io
-import datetime
 import requests
 from flask import Flask, render_template, request, send_file, redirect, url_for, session, jsonify
 
@@ -64,7 +63,7 @@ def api_delete(table, filters):
 
 
 def registrar_log(acao, detalhes="", chamado_id=None):
-    """Registra um log de auditoria"""
+    """Registra log de auditoria"""
     try:
         dados = {
             "acao": acao,
@@ -79,34 +78,25 @@ def registrar_log(acao, detalhes="", chamado_id=None):
 
 
 def init_db():
-    """Cria as tabelas necessárias"""
+    """Verifica se as tabelas existem"""
     try:
-        # Verifica se a tabela chamados existe
         dados = api_get("chamados", params={"limit": 1})
         if isinstance(dados, list):
             print("✅ Tabela 'chamados' acessível!")
-        else:
-            print("⚠️  Tabela 'chamados' não encontrada. Crie manualmente no SQL Editor do Supabase.")
     except:
-        print("⚠️  Não foi possível verificar tabela 'chamados'.")
-
-    # Tenta criar tabela de logs
+        pass
     try:
         dados_log = api_get("logs", params={"limit": 1})
         if isinstance(dados_log, list):
             print("✅ Tabela 'logs' acessível!")
-        else:
-            print("⚠️  Tabela 'logs' não encontrada. Crie manualmente no SQL Editor do Supabase.")
     except:
-        print("⚠️  Não foi possível verificar tabela 'logs'.")
+        pass
 
 
 def supabase_storage_upload(nome_arquivo, conteudo_bytes, pasta="rats"):
-    """Faz upload para o Storage do Supabase"""
+    """Faz upload PDF para o Storage do Supabase"""
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         return False
-
-    # Verifica/cria bucket
     try:
         headers_auth = {"apikey": SUPABASE_SERVICE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"}
         resp_buckets = requests.get(f"{SUPABASE_URL}/storage/v1/bucket", headers=headers_auth)
@@ -116,26 +106,18 @@ def supabase_storage_upload(nome_arquivo, conteudo_bytes, pasta="rats"):
                          json={"name": pasta, "public": True})
     except:
         pass
-
-    # Upload via multipart/form-data (mais confiável)
     url = f"{SUPABASE_URL}/storage/v1/object/{pasta}/{nome_arquivo}"
-    headers = {
-        "apikey": SUPABASE_SERVICE_KEY,
-        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-    }
-    files = {'file': (nome_arquivo, conteudo_bytes, 'application/pdf' if pasta == "rats" else 'image/jpeg')}
+    headers = {"apikey": SUPABASE_SERVICE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"}
+    files = {'file': (nome_arquivo, conteudo_bytes, 'application/pdf')}
     resp = requests.post(url, headers=headers, files=files)
     if resp.ok:
         return True
-
-    # Fallback: upload como binary
     headers["Content-Type"] = "application/octet-stream"
     resp2 = requests.post(url, headers=headers, data=conteudo_bytes)
     return resp2.ok
 
 
 def supabase_storage_download(nome_arquivo, pasta="rats"):
-    """Baixa arquivo do Storage do Supabase"""
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         return None
     url = f"{SUPABASE_URL}/storage/v1/object/public/{pasta}/{nome_arquivo}"
@@ -190,9 +172,9 @@ def enviar_chamado():
         "tecnico_responsavel": "Nenhum"
     }
 
-    resultado = api_post("chamados", dados_chamado)
+    api_post("chamados", dados_chamado)
 
-    # Upload de fotos se houver
+    # Upload fotos se houver
     if 'fotos' in request.files:
         fotos = request.files.getlist('fotos')
         for i, foto in enumerate(fotos):
@@ -215,7 +197,7 @@ def login():
         if usuario in ['tecsenior', 'tecnicon2', 'tecnicon1'] and senha == 'S@cCham@d##s2005':
             session['logado'] = True
             session['usuario'] = usuario
-            registrar_log("login", f"Usuário {usuario} logou no sistema")
+            registrar_log("login", f"Usuário {usuario} logou")
             return redirect(url_for('admin'))
         return render_template('login.html', erro="Credenciais incorretas.")
     return render_template('login.html', erro=None)
@@ -223,7 +205,7 @@ def login():
 
 @app.route('/logout')
 def logout():
-    registrar_log("logout", f"Usuário {session.get('usuario')} saiu do sistema")
+    registrar_log("logout", f"Usuário {session.get('usuario')} saiu")
     session.clear()
     return redirect(url_for('login'))
 
@@ -239,18 +221,16 @@ def admin():
         novo_tecnico = request.form.get('tecnico_responsavel')
         nova_urgencia = request.form.get('urgencia')
 
-        # Busca dados atuais para log
         dados_atuais = api_get("chamados", {"id": f"eq.{chamado_id}", "limit": "1"})
         if dados_atuais:
             chamado_atual = dados_atuais[0]
             mudancas = []
             if novo_status and novo_status != chamado_atual.get('status'):
-                mudancas.append(f"status: {chamado_atual.get('status')}→{novo_status}")
+                mudancas.append(f"status {chamado_atual.get('status')}→{novo_status}")
             if novo_tecnico and novo_tecnico != chamado_atual.get('tecnico_responsavel'):
-                mudancas.append(f"técnico: {chamado_atual.get('tecnico_responsavel')}→{novo_tecnico}")
+                mudancas.append(f"técnico {chamado_atual.get('tecnico_responsavel')}→{novo_tecnico}")
             if nova_urgencia and nova_urgencia != chamado_atual.get('urgencia'):
-                mudancas.append(f"urgência: {chamado_atual.get('urgencia')}→{nova_urgencia}")
-
+                mudancas.append(f"urgência {chamado_atual.get('urgencia')}→{nova_urgencia}")
             if mudancas:
                 registrar_log("alteracao", f"OS {chamado_atual.get('codigo_os')}: {', '.join(mudancas)}", chamado_id)
 
@@ -261,33 +241,12 @@ def admin():
         }, {"id": f"eq.{chamado_id}"})
 
     busca = request.args.get('busca', '')
-    pagina = request.args.get('pagina', '1')
-    try:
-        pagina = int(pagina)
-    except:
-        pagina = 1
-    por_pagina = 20
-
-    params = {
-        "status": "neq.Finalizado",
-        "order": "id.desc",
-        "limit": por_pagina,
-        "offset": (pagina - 1) * por_pagina
-    }
+    params = {"status": "neq.Finalizado", "order": "id.desc"}
     if busca:
         params["or"] = f"(codigo_os.ilike.*{busca}*,cliente.ilike.*{busca}*,empresa.ilike.*{busca}*,descricao.ilike.*{busca}*)"
 
     chamados = api_get("chamados", params)
-
-    # Pega total para saber se tem mais páginas
-    params_count = {"status": "neq.Finalizado", "select": "id", "limit": "1000"}
-    if busca:
-        params_count["or"] = params["or"]
-    total_ativos = len(api_get("chamados", params_count))
-    total_paginas = max(1, (total_ativos + por_pagina - 1) // por_pagina)
-
-    return render_template('admin.html', chamados=chamados, tecnico_atual=session.get('usuario'),
-                          busca=busca, pagina=pagina, total_paginas=total_paginas)
+    return render_template('admin.html', chamados=chamados, tecnico_atual=session.get('usuario'), busca=busca)
 
 
 @app.route('/arquivados')
@@ -296,32 +255,12 @@ def arquivados():
         return redirect(url_for('login'))
 
     busca = request.args.get('busca', '')
-    pagina = request.args.get('pagina', '1')
-    try:
-        pagina = int(pagina)
-    except:
-        pagina = 1
-    por_pagina = 20
-
-    params = {
-        "status": "eq.Finalizado",
-        "order": "id.desc",
-        "limit": por_pagina,
-        "offset": (pagina - 1) * por_pagina
-    }
+    params = {"status": "eq.Finalizado", "order": "id.desc"}
     if busca:
         params["or"] = f"(codigo_os.ilike.*{busca}*,cliente.ilike.*{busca}*,empresa.ilike.*{busca}*)"
 
     chamados = api_get("chamados", params)
-
-    params_count = {"status": "eq.Finalizado", "select": "id", "limit": "1000"}
-    if busca:
-        params_count["or"] = params["or"]
-    total_fechados = len(api_get("chamados", params_count))
-    total_paginas = max(1, (total_fechados + por_pagina - 1) // por_pagina)
-
-    return render_template('arquivados.html', chamados=chamados, busca=busca,
-                          pagina=pagina, total_paginas=total_paginas)
+    return render_template('arquivados.html', chamados=chamados)
 
 
 @app.route('/rat_avulsa')
@@ -381,16 +320,15 @@ def finalizar_chamado_rat(id):
 
     api_patch("chamados", {"status": "Finalizado"}, {"id": f"eq.{id}"})
 
-    # Log da finalização
     dados_chamado = api_get("chamados", {"id": f"eq.{id}", "limit": "1"})
     codigo = dados_chamado[0].get('codigo_os', '') if dados_chamado else ''
-    registrar_log("finalizacao", f"OS {codigo} finalizada com RAT", id)
+    registrar_log("finalizacao", f"OS {codigo} finalizada", id)
 
     msg = "Chamado arquivado com sucesso!"
     if pdf_salvo:
         msg += " RAT salva no storage."
     else:
-        msg += " (PDF não foi salvo verifique)"
+        msg += " (PDF não foi salvo - verifique config)"
 
     return jsonify({"sucesso": True, "mensagem": msg}), 200
 
@@ -420,7 +358,6 @@ def excluir_chamado(id):
 
     dados_chamado = api_get("chamados", {"id": f"eq.{id}", "limit": "1"})
     codigo = dados_chamado[0].get('codigo_os', '') if dados_chamado else ''
-
     api_delete("chamados", {"id": f"eq.{id}"})
     registrar_log("exclusao", f"OS {codigo} excluída", id)
     return redirect(url_for('admin'))
@@ -443,6 +380,16 @@ def foto_chamado(nome_arquivo):
         mimetype = f'image/{ext}' if ext in ['jpg', 'jpeg', 'png', 'gif', 'webp'] else 'image/jpeg'
         return send_file(io.BytesIO(dados), mimetype=mimetype)
     return "Foto não encontrada", 404
+
+
+@app.route('/logs')
+def visualizar_logs():
+    """Página de logs de auditoria - acesso via /logs"""
+    if not session.get('logado'):
+        return redirect(url_for('login'))
+
+    logs = api_get("logs", {"order": "id.desc", "limit": "100"})
+    return render_template('logs.html', logs=logs)
 
 
 @app.route('/dashboard')
@@ -474,42 +421,12 @@ def dashboard():
         "limit": 3
     })
 
-    # Métricas adicionais (sem mudar aparência)
-    hoje = datetime.date.today().isoformat()
-    chamados_hoje = api_get("chamados", {
-        "data_abertura": f"gte.{hoje}",
-        "select": "id"
-    })
-
     return render_template('dashboard.html',
                           total_ativos=total_ativos,
                           total_fechados=total_fechados,
                           total_criticos=total_criticos,
                           ranking_tecnicos=ranking_tecnicos,
-                          top_clientes=top_clientes,
-                          chamados_hoje=len(chamados_hoje))
-
-
-@app.route('/logs')
-def visualizar_logs():
-    """Página de logs de auditoria"""
-    if not session.get('logado'):
-        return redirect(url_for('login'))
-
-    pagina = request.args.get('pagina', '1')
-    try:
-        pagina = int(pagina)
-    except:
-        pagina = 1
-    por_pagina = 50
-
-    logs = api_get("logs", {
-        "order": "id.desc",
-        "limit": por_pagina,
-        "offset": (pagina - 1) * por_pagina
-    })
-
-    return render_template('logs.html', logs=logs, pagina=pagina)
+                          top_clientes=top_clientes)
 
 
 @app.route('/admin/bulk_excluir', methods=['POST'])
