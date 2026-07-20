@@ -2,155 +2,133 @@ import os
 import random
 import string
 import io
-import socket
 import requests
-import psycopg
-from psycopg.rows import dict_row
-from urllib.parse import urlparse
 from flask import Flask, render_template, request, send_file, redirect, url_for, session, jsonify
 
 app = Flask(__name__)
 app.secret_key = 'chave_secreta_jrvti_2026'
 
 # === CONFIGURAÇÃO SUPABASE ===
-SUPABASE_URL = os.environ.get('SUPABASE_URL')
-SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
-DATABASE_URL = os.environ.get('DATABASE_URL')
+SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY', '')
+SUPABASE_SERVICE_KEY = os.environ.get('SUPABASE_SERVICE_KEY', '')
+
+# Remove barra final se houver
+SUPABASE_URL = SUPABASE_URL.rstrip('/')
+
+# Cabeçalhos padrão para API REST do Supabase (PostgREST)
+def api_headers(use_service_role=False):
+    key = SUPABASE_SERVICE_KEY if use_service_role else SUPABASE_KEY
+    return {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Prefer": "return=representation"
+    }
 
 
-def get_db_connection():
-    """Conecta ao PostgreSQL do Supabase.
-    Remove quebras de linha, força sslmode=require.
-    Se o hostname só tiver IPv6, usa o Session Pooler que tem IPv4.
-    """
-    url = DATABASE_URL
-    if not url:
-        raise ValueError("DATABASE_URL não configurada!")
+def api_get(table, params=None):
+    """GET via REST API"""
+    url = f"{SUPABASE_URL}/rest/v1/{table}"
+    headers = api_headers(use_service_role=True)
+    resp = requests.get(url, headers=headers, params=params)
+    if resp.status_code >= 400:
+        print(f"⚠️  GET {table} erro {resp.status_code}: {resp.text}")
+    return resp.json() if resp.ok else []
 
-    # Limpa a URL (remove espaços, quebras de linha)
-    url = url.strip()
-    
-    # Garante sslmode=require
-    if 'sslmode' not in url:
-        url += '&' if '?' in url else '?'
-        url += 'sslmode=require'
 
-    # Extrai informações da URL
-    parsed = urlparse(url)
-    hostname = parsed.hostname or ''
-    
-    # Detecta se é uma URL do Supabase (db.XXXXX.supabase.co ou pooler)
-    is_supabase = 'supabase.co' in hostname
-    project_ref = None
-    
-    if is_supabase:
-        # Extrai project_ref do hostname
-        # Formatos possíveis:
-        #   db.XXXXXXXXXX.supabase.co  (Direct Connection)
-        #   aws-0-sa-east-1.pooler.supabase.com (Session Pooler)
-        if hostname.startswith('db.'):
-            parts = hostname.split('.')
-            if len(parts) >= 2:
-                project_ref = parts[1]
-        elif 'pooler.supabase.com' in hostname:
-            # Já é pooler, extrai do usuário
-            user = parsed.username or ''
-            if user and user.startswith('postgres.'):
-                project_ref = user.replace('postgres.', '')
-    
-    # Se não conseguiu extrair project_ref, tenta da SUPABASE_URL
-    if not project_ref and SUPABASE_URL:
-        # SUPABASE_URL = https://dbsrkidmenhnadtgwkon.supabase.co
-        ref_match = SUPABASE_URL.replace('https://', '').split('.')[0]
-        if ref_match:
-            project_ref = ref_match
+def api_post(table, data):
+    """POST (INSERT) via REST API"""
+    url = f"{SUPABASE_URL}/rest/v1/{table}"
+    headers = api_headers(use_service_role=True)
+    resp = requests.post(url, headers=headers, json=data)
+    if resp.status_code >= 400:
+        print(f"⚠️  POST {table} erro {resp.status_code}: {resp.text}")
+    return resp.json() if resp.ok else []
 
-    # Verifica se o hostname resolve para IPv4
-    tem_ipv4 = False
-    try:
-        socket.getaddrinfo(hostname, 5432, socket.AF_INET)
-        tem_ipv4 = True
-    except:
-        tem_ipv4 = False
 
-    # Verifica se resolve para IPv6
-    tem_ipv6 = False
-    try:
-        socket.getaddrinfo(hostname, 5432, socket.AF_INET6)
-        tem_ipv6 = True
-    except:
-        tem_ipv6 = False
+def api_patch(table, data, filters):
+    """PATCH (UPDATE) via REST API"""
+    url = f"{SUPABASE_URL}/rest/v1/{table}"
+    headers = api_headers(use_service_role=True)
+    resp = requests.patch(url, headers=headers, params=filters, json=data)
+    if resp.status_code >= 400:
+        print(f"⚠️  PATCH {table} erro {resp.status_code}: {resp.text}")
+    return resp.ok
 
-    # --- DECISÃO: qual endpoint usar? ---
-    if is_supabase and not tem_ipv4 and tem_ipv6 and project_ref:
-        # O hostname só tem IPv6! Usar Session Pooler (IPv4)
-        password = parsed.password or ''
-        pooler_user = f"postgres.{project_ref}"
-        pooler_url = (
-            f"postgresql://{pooler_user}:{password}"
-            f"@aws-0-sa-east-1.pooler.supabase.com"
-            f":6543/postgres?sslmode=require"
-        )
-        print(f"🔁 DNS só IPv6 → usando Session Pooler: postgres.{project_ref}@pooler.supabase.com:6543")
-        url = pooler_url
-    elif tem_ipv4 and hostname:
-        # Tem IPv4, força o uso do IP direto (evita resolução DNS)
-        try:
-            ipv4 = socket.getaddrinfo(hostname, 5432, socket.AF_INET)[0][4][0]
-            url = url.replace(f'@{hostname}', f'@{ipv4}')
-        except:
-            pass
 
-    try:
-        conn = psycopg.connect(url)
-        return conn
-    except Exception as e:
-        print(f"❌ ERRO AO CONECTAR: {e}")
-        raise
+def api_delete(table, filters):
+    """DELETE via REST API"""
+    url = f"{SUPABASE_URL}/rest/v1/{table}"
+    headers = api_headers(use_service_role=True)
+    resp = requests.delete(url, headers=headers, params=filters)
+    if resp.status_code >= 400:
+        print(f"⚠️  DELETE {table} erro {resp.status_code}: {resp.text}")
+    return resp.ok
 
 
 def init_db():
-    """Cria a tabela chamados se não existir"""
+    """Cria a tabela chamados via REST API"""
+    print("🔄 Inicializando banco de dados via REST API...")
+    
+    # Verifica se a tabela existe tentando listar
+    dados = api_get("chamados", params={"limit": 1})
+    
+    if isinstance(dados, list):
+        print("✅ Tabela 'chamados' já existe e está acessível!")
+        return
+    
+    # Se não existir, precisamos criar via SQL
+    # Usamos o endpoint /sql para executar SQL direto
     try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS chamados (
-                id SERIAL PRIMARY KEY,
-                codigo_os VARCHAR(20) UNIQUE NOT NULL,
-                cliente VARCHAR(200) NOT NULL,
-                empresa VARCHAR(200) NOT NULL,
-                whatsapp VARCHAR(50) NOT NULL,
-                descricao TEXT NOT NULL,
-                marca VARCHAR(100) DEFAULT 'Não informado',
-                modelo VARCHAR(100) DEFAULT 'Não informado',
-                urgencia VARCHAR(20) DEFAULT 'Média',
-                status VARCHAR(50) DEFAULT 'Aberto',
-                tecnico_responsavel VARCHAR(50) DEFAULT 'Nenhum',
-                data_abertura TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.commit()
-        cur.close()
-        conn.close()
+        url = f"{SUPABASE_URL}/rest/v1/rpc/"
+        headers = api_headers(use_service_role=True)
+        
+        # O Supabase tem um endpoint /sql para queries SQL
+        sql_url = f"{SUPABASE_URL}/sql"
+        sql_body = """
+        CREATE TABLE IF NOT EXISTS chamados (
+            id SERIAL PRIMARY KEY,
+            codigo_os VARCHAR(20) UNIQUE NOT NULL,
+            cliente VARCHAR(200) NOT NULL,
+            empresa VARCHAR(200) NOT NULL,
+            whatsapp VARCHAR(50) NOT NULL,
+            descricao TEXT NOT NULL,
+            marca VARCHAR(100) DEFAULT 'Não informado',
+            modelo VARCHAR(100) DEFAULT 'Não informado',
+            urgencia VARCHAR(20) DEFAULT 'Média',
+            status VARCHAR(50) DEFAULT 'Aberto',
+            tecnico_responsavel VARCHAR(50) DEFAULT 'Nenhum',
+            data_abertura TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+        resp = requests.post(sql_url, headers=headers, json={"query": sql_body})
+        if resp.ok:
+            print("✅ Tabela 'chamados' criada com sucesso!")
+        else:
+            print(f"⚠️  Não foi possível criar tabela via SQL API: {resp.status_code}")
+            print("   Crie manualmente no SQL Editor do Supabase com o script acima.")
     except Exception as e:
-        print(f"⚠️  Erro ao inicializar banco: {e}")
+        print(f"⚠️  Erro ao criar tabela: {e}")
+        print("   Crie manualmente no SQL Editor do Supabase.")
 
 
 def supabase_storage_upload(nome_arquivo, conteudo_bytes):
     """Faz upload PDF para o Storage do Supabase via API REST"""
-    if not SUPABASE_URL or not SUPABASE_KEY:
+    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         return False
     try:
         bucket_url = f"{SUPABASE_URL}/storage/v1/bucket/rats"
-        headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+        headers = {"apikey": SUPABASE_SERVICE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"}
         requests.post(bucket_url, headers=headers, json={"name": "rats", "public": True})
     except:
         pass
+    
     url = f"{SUPABASE_URL}/storage/v1/object/rats/{nome_arquivo}"
     headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "apikey": SUPABASE_SERVICE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
         "Content-Type": "application/pdf"
     }
     resp = requests.post(url, headers=headers, data=conteudo_bytes)
@@ -159,10 +137,10 @@ def supabase_storage_upload(nome_arquivo, conteudo_bytes):
 
 def supabase_storage_download(nome_arquivo):
     """Baixa PDF do Storage do Supabase via API REST"""
-    if not SUPABASE_URL or not SUPABASE_KEY:
+    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         return None
     url = f"{SUPABASE_URL}/storage/v1/object/public/rats/{nome_arquivo}"
-    headers = {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+    headers = {"apikey": SUPABASE_SERVICE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"}
     resp = requests.get(url, headers=headers)
     if resp.ok:
         return resp.content
@@ -189,15 +167,19 @@ def enviar_chamado():
     descricao = request.form.get('descricao')
     descricao_final = f"Equipamento: {marca} / {modelo} | Problema: {descricao}"
     codigo_gerado = gerar_codigo_os()
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute('''
-        INSERT INTO chamados (codigo_os, cliente, empresa, whatsapp, descricao, marca, modelo, urgencia)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-    ''', (codigo_gerado, cliente, empresa, whatsapp, descricao_final, marca, modelo, 'Média'))
-    conn.commit()
-    cur.close()
-    conn.close()
+    
+    data = {
+        "codigo_os": codigo_gerado,
+        "cliente": cliente,
+        "empresa": empresa,
+        "whatsapp": whatsapp,
+        "descricao": descricao_final,
+        "marca": marca,
+        "modelo": modelo,
+        "urgencia": "Média"
+    }
+    
+    api_post("chamados", data)
     return render_template('sucesso.html', codigo_os=codigo_gerado)
 
 
@@ -222,21 +204,22 @@ def logout():
 def admin():
     if not session.get('logado'):
         return redirect(url_for('login'))
-    conn = get_db_connection()
-    cur = conn.cursor(row_factory=dict_row)
+    
     if request.method == 'POST':
-        cur.execute("UPDATE chamados SET status = %s, tecnico_responsavel = %s, urgencia = %s WHERE id = %s",
-                    (request.form.get('status'), request.form.get('tecnico_responsavel'),
-                     request.form.get('urgencia'), request.form.get('id')))
-        conn.commit()
+        chamado_id = request.form.get('id')
+        api_patch("chamados", {
+            "status": request.form.get('status'),
+            "tecnico_responsavel": request.form.get('tecnico_responsavel'),
+            "urgencia": request.form.get('urgencia')
+        }, {"id": f"eq.{chamado_id}"})
+    
     busca = request.args.get('busca', '')
-    query = "SELECT * FROM chamados WHERE status != 'Finalizado'"
+    params = {"status": "neq.Finalizado", "order": "id.desc"}
     if busca:
-        query += f" AND (codigo_os ILIKE '%{busca}%' OR cliente ILIKE '%{busca}%')"
-    cur.execute(query + " ORDER BY id DESC")
-    chamados = cur.fetchall()
-    cur.close()
-    conn.close()
+        params["or"] = f"(codigo_os.ilike.*{busca}*,cliente.ilike.*{busca}*)"
+    
+    chamados = api_get("chamados", params)
+    
     return render_template('admin.html', chamados=chamados, tecnico_atual=session.get('usuario'), busca=busca)
 
 
@@ -244,16 +227,13 @@ def admin():
 def arquivados():
     if not session.get('logado'):
         return redirect(url_for('login'))
-    conn = get_db_connection()
-    cur = conn.cursor(row_factory=dict_row)
+    
     busca = request.args.get('busca', '')
-    query = "SELECT * FROM chamados WHERE status = 'Finalizado'"
+    params = {"status": "eq.Finalizado", "order": "id.desc"}
     if busca:
-        query += f" AND (codigo_os ILIKE '%{busca}%' OR cliente ILIKE '%{busca}%')"
-    cur.execute(query + " ORDER BY id DESC")
-    chamados = cur.fetchall()
-    cur.close()
-    conn.close()
+        params["or"] = f"(codigo_os.ilike.*{busca}*,cliente.ilike.*{busca}*)"
+    
+    chamados = api_get("chamados", params)
     return render_template('arquivados.html', chamados=chamados)
 
 
@@ -268,30 +248,22 @@ def rat_avulsa():
 def detalhes_chamado(id):
     if not session.get('logado'):
         return redirect(url_for('login'))
-    conn = get_db_connection()
-    cur = conn.cursor(row_factory=dict_row)
-    cur.execute("SELECT * FROM chamados WHERE id = %s", (id,))
-    chamado = cur.fetchone()
-    cur.close()
-    conn.close()
-    if not chamado:
+    
+    dados = api_get("chamados", {"id": f"eq.{id}", "limit": "1"})
+    if not dados:
         return "Chamado não encontrado", 404
-    return render_template('detalhes.html', chamado=chamado)
+    return render_template('detalhes.html', chamado=dados[0])
 
 
 @app.route('/chamado/<int:id>/rat')
 def rat_chamado(id):
     if not session.get('logado'):
         return redirect(url_for('login'))
-    conn = get_db_connection()
-    cur = conn.cursor(row_factory=dict_row)
-    cur.execute("SELECT * FROM chamados WHERE id = %s", (id,))
-    chamado = cur.fetchone()
-    cur.close()
-    conn.close()
-    if not chamado:
+    
+    dados = api_get("chamados", {"id": f"eq.{id}", "limit": "1"})
+    if not dados:
         return "Chamado não encontrado", 404
-    return render_template('rat.html', chamado=chamado)
+    return render_template('rat.html', chamado=dados[0])
 
 
 @app.route('/chamado/<int:id>/finalizar', methods=['POST'])
@@ -300,7 +272,7 @@ def finalizar_chamado_rat(id):
         return jsonify({"erro": "Não autorizado"}), 401
 
     pdf_salvo = False
-    if 'pdf' in request.files and SUPABASE_URL and SUPABASE_KEY:
+    if 'pdf' in request.files and SUPABASE_URL and SUPABASE_SERVICE_KEY:
         arquivo_pdf = request.files['pdf']
         pdf_bytes = arquivo_pdf.read()
         nome_arquivo = f'RAT_OS_{id}.pdf'
@@ -309,12 +281,7 @@ def finalizar_chamado_rat(id):
         except Exception as e:
             print(f"Erro ao enviar PDF: {e}")
 
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("UPDATE chamados SET status = 'Finalizado' WHERE id = %s", (id,))
-    conn.commit()
-    cur.close()
-    conn.close()
+    api_patch("chamados", {"status": "Finalizado"}, {"id": f"eq.{id}"})
 
     msg = "Chamado arquivado com sucesso!"
     if pdf_salvo:
@@ -348,12 +315,8 @@ def baixar_rat(id):
 def excluir_chamado(id):
     if not session.get('logado'):
         return redirect(url_for('login'))
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM chamados WHERE id = %s", (id,))
-    conn.commit()
-    cur.close()
-    conn.close()
+    
+    api_delete("chamados", {"id": f"eq.{id}"})
     return redirect(url_for('admin'))
 
 
@@ -369,26 +332,42 @@ def modelo_rat():
 def dashboard():
     if not session.get('logado'):
         return redirect(url_for('login'))
-    conn = get_db_connection()
-    cur = conn.cursor(row_factory=dict_row)
-    cur.execute("SELECT COUNT(*) as total FROM chamados WHERE status != 'Finalizado'")
-    total_ativos = cur.fetchone()['total']
-    cur.execute("SELECT COUNT(*) as total FROM chamados WHERE status = 'Finalizado'")
-    total_fechados = cur.fetchone()['total']
-    cur.execute("SELECT COUNT(*) as total FROM chamados WHERE status != 'Finalizado' AND urgencia IN ('Alta', 'Crítica')")
-    total_criticos = cur.fetchone()['total']
-    cur.execute("SELECT tecnico_responsavel, COUNT(*) as qtd FROM chamados WHERE status = 'Finalizado' GROUP BY tecnico_responsavel ORDER BY qtd DESC")
-    ranking_tecnicos = cur.fetchall()
-    cur.execute("SELECT empresa, COUNT(*) as qtd FROM chamados GROUP BY empresa ORDER BY qtd DESC LIMIT 3")
-    top_clientes = cur.fetchall()
-    cur.close()
-    conn.close()
-    return render_template('dashboard.html', total_ativos=total_ativos, total_fechados=total_fechados,
-                           total_criticos=total_criticos, ranking_tecnicos=ranking_tecnicos,
+    
+    # Métricas via REST API
+    total_ativos = len(api_get("chamados", {"status": "neq.Finalizado", "select": "id"}))
+    
+    total_fechados = len(api_get("chamados", {"status": "eq.Finalizado", "select": "id"}))
+    
+    criticos = api_get("chamados", {
+        "status": "neq.Finalizado",
+        "urgencia": "in.(Alta,Crítica)",
+        "select": "id"
+    })
+    total_criticos = len(criticos)
+    
+    ranking_tecnicos = api_get("chamados", {
+        "status": "eq.Finalizado",
+        "select": "tecnico_responsavel,count",
+        "group": "tecnico_responsavel",
+        "order": "count.desc"
+    })
+    
+    top_clientes = api_get("chamados", {
+        "select": "empresa,count",
+        "group": "empresa",
+        "order": "count.desc",
+        "limit": 3
+    })
+    
+    return render_template('dashboard.html', 
+                           total_ativos=total_ativos, 
+                           total_fechados=total_fechados,
+                           total_criticos=total_criticos, 
+                           ranking_tecnicos=ranking_tecnicos,
                            top_clientes=top_clientes)
 
 
-# Inicializa o banco de dados (cria tabela se não existir)
+# Inicializa
 init_db()
 
 if __name__ == '__main__':
