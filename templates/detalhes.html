@@ -41,7 +41,6 @@
         .fotos-box { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
         .foto-item { width: 80px; height: 80px; border: 2px solid var(--border-cor); overflow: hidden; cursor: pointer; }
         .foto-item img { width: 100%; height: 100%; object-fit: cover; }
-
         .log-item { font-size: 12px; padding: 5px 0; border-bottom: 1px dashed var(--border-cor); color: var(--texto-secundario); }
         .log-item:last-child { border-bottom: none; }
     </style>
@@ -76,15 +75,6 @@
                 <span class="label">Status Atual</span>
                 <strong>{{ chamado.status|upper }}</strong>
             </div>
-            {% if chamado.tecnico_responsavel and chamado.tecnico_responsavel != 'Nenhum' %}
-            <div class="info-row">
-                <span class="label">Técnico Responsável</span>
-                {% if chamado.tecnico_responsavel == 'tecnicon1' %}N1 - Maciel
-                {% elif chamado.tecnico_responsavel == 'tecnicon2' %}N2 - Adams
-                {% elif chamado.tecnico_responsavel == 'tecsenior' %}N3 - Jaime
-                {% else %}{{ chamado.tecnico_responsavel }}{% endif %}
-            </div>
-            {% endif %}
             <div class="info-row">
                 <span class="label">Descrição Completa da Ocorrência</span>
                 <div class="descricao-longa">{{ chamado.descricao }}</div>
@@ -104,6 +94,17 @@
         </div>
         {% endif %}
 
+        {% if chamado.tecnico_responsavel and chamado.tecnico_responsavel != 'Nenhum' %}
+        <div class="info-box">
+            <div class="info-row">
+                <span class="label">Técnico Responsável</span>
+                {% if chamado.tecnico_responsavel == 'tecnicon1' %}N1 - Maciel
+                {% elif chamado.tecnico_responsavel == 'tecnicon2' %}N2 - Adams
+                {% elif chamado.tecnico_responsavel == 'tecsenior' %}N3 - Jaime
+                {% else %}{{ chamado.tecnico_responsavel }}{% endif %}
+            </div>
+        {% endif %}
+
         {% if logs %}
         <div class="info-box">
             <div class="info-row">
@@ -111,12 +112,12 @@
                 {% for log in logs %}
                 <div class="log-item">
                     <strong>{{ log.data[:16] }}</strong> — 
-                    {% if log.acao == 'login' %}🔓 Login{% 
-                    elif log.acao == 'logout' %}🔒 Logout{% 
-                    elif log.acao == 'alteracao' %}✏️ Alteração{% 
-                    elif log.acao == 'finalizacao' %}✅ Finalização{% 
-                    elif log.acao == 'exclusao' %}🗑️ Exclusão{% 
-                    else %}{{ log.acao }}{% endif %}: 
+                    {% if log.acao == 'login' %}🔓 Login
+                    {% elif log.acao == 'logout' %}🔒 Logout
+                    {% elif log.acao == 'alteracao' %}✏️ Alteração
+                    {% elif log.acao == 'finalizacao' %}✅ Finalização
+                    {% elif log.acao == 'exclusao' %}🗑️ Exclusão
+                    {% else %}{{ log.acao }}{% endif %}: 
                     {{ log.detalhes }}
                 </div>
                 {% endfor %}

@@ -61,11 +61,6 @@
 
         .btn-excluir { background: var(--bg-container); color: #cc0000; border: 1px solid #cc0000; padding: 5px 10px; font-weight: bold; cursor: pointer; font-size: 11px; text-transform: uppercase; }
         .btn-excluir:hover { background: #cc0000; color: #ffffff; }
-
-        .paginacao { margin-top: 20px; display: flex; gap: 10px; justify-content: center; }
-        .paginacao a { background: var(--bg-container); color: var(--texto-principal); border: 2px solid var(--border-cor); padding: 6px 12px; text-decoration: none; font-weight: bold; }
-        .paginacao a:hover { background: var(--texto-principal); color: var(--bg-container); }
-        .paginacao span { padding: 6px 12px; color: var(--texto-secundario); }
     </style>
 </head>
 <body>
@@ -77,7 +72,7 @@
                 <a href="/" target="_blank" class="btn-novo-chamado">➕ Criar Chamado</a>
                 <a href="/rat_avulsa" class="btn-rat-avulsa">📝 Nova RAT</a>
                 <a href="/dashboard" class="btn-dashboard">📊 Ver Dashboard</a>
-                <a href="/arquivados" class="btn-arquivados">📁 Chamados Fechados</a>
+                <a href="/arquivados" class="btn-arquivados">📁 Ver Chamados Fechados</a>
                 <a href="/logs" class="btn-arquivados">📋 Logs</a>
 
                 <div class="user-block">
@@ -92,7 +87,7 @@
         </div>
 
         <form method="GET" action="/admin" class="busca-container">
-            <input type="text" name="busca" class="input-busca" placeholder="Pesquisar por O.S., Cliente, Empresa..." value="{{ busca }}">
+            <input type="text" name="busca" class="input-busca" placeholder="Pesquisar por O.S., Cliente, Empresa, urgência ou problema..." value="{{ busca }}">
             <button type="submit" class="btn-busca">🔍 Buscar</button>
             {% if busca %}
                 <a href="/admin" class="btn-limpar">Limpar Filtro</a>
@@ -137,6 +132,7 @@
                                 <input type="hidden" name="status" value="Em Atendimento">
                                 <input type="hidden" name="tecnico_responsavel" value="{{ tecnico_atual }}">
                                 <button type="submit" class="btn-acao-atender">Atender Chamado</button>
+
                                 <button type="button" class="btn-excluir" style="padding: 6px 12px; font-size: 12px;" onclick="if(confirm('Tem certeza absoluta que deseja excluir permanentemente este chamado ativo?')) { this.form.action='/chamado/{{ chamado.id }}/excluir'; this.form.submit(); }">❌ Excluir</button>
                             </form>
                         </td>
@@ -169,6 +165,7 @@
                                 <div style="display: flex; gap: 5px; align-items: center;">
                                     <button type="submit" class="btn-salvar-mudanca">Salvar</button>
                                     <a href="/chamado/{{ chamado.id }}/rat" class="btn-atender" style="padding: 5px 10px; font-size:11px;">RAT</a>
+
                                     <button type="button" class="btn-excluir" onclick="if(confirm('Tem certeza absoluta que deseja excluir permanentemente este chamado ativo?')) { this.form.action='/chamado/{{ chamado.id }}/excluir'; this.form.submit(); }">❌ Excluir</button>
                                 </div>
                             </td>
@@ -178,18 +175,6 @@
                 {% endfor %}
             </tbody>
         </table>
-
-        {% if total_paginas > 1 %}
-        <div class="paginacao">
-            {% if pagina > 1 %}
-                <a href="/admin?pagina={{ pagina - 1 }}{% if busca %}&busca={{ busca }}{% endif %}">⬅ Anterior</a>
-            {% endif %}
-            <span>Página {{ pagina }} de {{ total_paginas }}</span>
-            {% if pagina < total_paginas %}
-                <a href="/admin?pagina={{ pagina + 1 }}{% if busca %}&busca={{ busca }}{% endif %}">Próxima ➡</a>
-            {% endif %}
-        </div>
-        {% endif %}
     </div>
 
     <script>
