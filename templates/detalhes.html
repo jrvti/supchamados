@@ -37,6 +37,13 @@
         .label { font-weight: bold; text-transform: uppercase; font-size: 12px; color: var(--texto-secundario); display: block; margin-bottom: 2px; }
 
         .descricao-longa { background: var(--bg-container); border: 2px solid var(--border-cor); padding: 15px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; margin-top: 5px; }
+
+        .fotos-box { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .foto-item { width: 80px; height: 80px; border: 2px solid var(--border-cor); overflow: hidden; cursor: pointer; }
+        .foto-item img { width: 100%; height: 100%; object-fit: cover; }
+
+        .log-item { font-size: 12px; padding: 5px 0; border-bottom: 1px dashed var(--border-cor); color: var(--texto-secundario); }
+        .log-item:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
@@ -47,7 +54,6 @@
                 <button id="theme-toggle" class="btn-theme-toggle">🌙 Modo Escuro</button>
                 <a href="/admin" class="btn-voltar">Voltar</a>
             </div>
-        </div>
 
         <div class="info-box">
             <div class="info-row">
@@ -70,11 +76,52 @@
                 <span class="label">Status Atual</span>
                 <strong>{{ chamado.status|upper }}</strong>
             </div>
+            {% if chamado.tecnico_responsavel and chamado.tecnico_responsavel != 'Nenhum' %}
+            <div class="info-row">
+                <span class="label">Técnico Responsável</span>
+                {% if chamado.tecnico_responsavel == 'tecnicon1' %}N1 - Maciel
+                {% elif chamado.tecnico_responsavel == 'tecnicon2' %}N2 - Adams
+                {% elif chamado.tecnico_responsavel == 'tecsenior' %}N3 - Jaime
+                {% else %}{{ chamado.tecnico_responsavel }}{% endif %}
+            </div>
+            {% endif %}
             <div class="info-row">
                 <span class="label">Descrição Completa da Ocorrência</span>
                 <div class="descricao-longa">{{ chamado.descricao }}</div>
-            </div>
         </div>
+
+        {% if fotos %}
+        <div class="info-box">
+            <div class="info-row">
+                <span class="label">Fotos Anexadas ({{ fotos|length }})</span>
+                <div class="fotos-box">
+                {% for foto in fotos %}
+                    <a href="/foto_chamado/{{ foto.name }}" target="_blank" class="foto-item">
+                        <img src="/foto_chamado/{{ foto.name }}" alt="Foto">
+                    </a>
+                {% endfor %}
+                </div>
+        </div>
+        {% endif %}
+
+        {% if logs %}
+        <div class="info-box">
+            <div class="info-row">
+                <span class="label">Histórico de Atividades</span>
+                {% for log in logs %}
+                <div class="log-item">
+                    <strong>{{ log.data[:16] }}</strong> — 
+                    {% if log.acao == 'login' %}🔓 Login{% 
+                    elif log.acao == 'logout' %}🔒 Logout{% 
+                    elif log.acao == 'alteracao' %}✏️ Alteração{% 
+                    elif log.acao == 'finalizacao' %}✅ Finalização{% 
+                    elif log.acao == 'exclusao' %}🗑️ Exclusão{% 
+                    else %}{{ log.acao }}{% endif %}: 
+                    {{ log.detalhes }}
+                </div>
+                {% endfor %}
+            </div>
+        {% endif %}
     </div>
 
     <script>
@@ -98,4 +145,3 @@
     </script>
 </body>
 </html>
-

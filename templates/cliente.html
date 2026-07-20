@@ -48,7 +48,7 @@
         <h2>Abertura de Chamado</h2>
         <div class="sub">Suporte de TI e Sistemas de Monitoramento / Segurança</div>
 
-        <form action="/enviar_chamado" method="POST">
+        <form action="/enviar_chamado" method="POST" enctype="multipart/form-data">
             <label for="cliente">Seu Nome / Solicitante:</label>
             <input type="text" id="cliente" name="cliente" placeholder="Ex: Carlos Silva" required>
 
@@ -67,12 +67,14 @@
                     <label for="modelo">Modelo / Tipo (Opcional):</label>
                     <input type="text" id="modelo" name="modelo" placeholder="DVR, Câmera, Computador...">
                 </div>
-            </div>
 
             <label for="descricao">Descrição Detalhada do Problema:</label>
             <textarea id="descricao" name="descricao" placeholder="Descreva aqui o que está acontecendo com o sistema ou equipamento técnico..." required></textarea>
 
-   <button type="submit" class="btn-enviar">Enviar Ordem de Serviço</button>
+            <label for="fotos">Fotos (opcional):</label>
+            <input type="file" id="fotos" name="fotos" accept="image/*" multiple style="padding: 8px;">
+
+            <button type="submit" class="btn-enviar">Enviar Ordem de Serviço</button>
 
             <div style="text-align: center; margin-top: 20px;">
                 <a href="/login" style="color: var(--texto-secundario); font-size: 12px; text-decoration: underline;">Você é um técnico? Entre aqui.</a>
@@ -101,4 +103,3 @@
     </script>
 </body>
 </html>
-

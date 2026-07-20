@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Logs de Auditoria - JRV-TI</title>
+    <style>
+        :root {
+            --bg-geral: #f9f9f9;
+            --bg-container: #ffffff;
+            --texto-principal: #000000;
+            --texto-secundario: #666666;
+            --bg-tabela-par: #f2f2f2;
+            --border-cor: #000000;
+        }
+        [data-theme="dark"] {
+            --bg-geral: #121212;
+            --bg-container: #1e1e1e;
+            --texto-principal: #ffffff;
+            --texto-secundario: #aaaaaa;
+            --bg-tabela-par: #2a2a2a;
+            --border-cor: #ffffff;
+        }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg-geral); color: var(--texto-principal); padding: 30px; margin: 0; transition: background 0.2s, color 0.2s; }
+        .container { max-width: 1300px; background: var(--bg-container); padding: 25px; margin: auto; border: 2px solid var(--border-cor); }
+        .header-painel { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-cor); padding-bottom: 15px; margin-bottom: 20px; }
+        h2 { color: var(--texto-principal); margin: 0; text-transform: uppercase; font-size: 20px; }
+        .btn-voltar { background: var(--bg-container); color: var(--texto-principal); border: 2px solid var(--border-cor); padding: 6px 12px; text-decoration: none; font-weight: bold; font-size: 13px; text-transform: uppercase; }
+        .btn-voltar:hover { background: var(--texto-principal); color: var(--bg-container); }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 10px; border: 1px solid var(--border-cor); text-align: left; vertical-align: middle; }
+        th { background-color: var(--texto-principal); color: var(--bg-container); font-weight: 600; text-transform: uppercase; font-size: 12px; }
+        tr:nth-child(even) { background-color: var(--bg-tabela-par); }
+        .badge-log { display: inline-block; padding: 2px 6px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .badge-login { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .badge-alteracao { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .badge-finalizacao { background: #cce5ff; color: #004085; border: 1px solid #b8daff; }
+        .badge-exclusao { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .paginacao { margin-top: 20px; display: flex; gap: 10px; justify-content: center; }
+        .paginacao a { background: var(--bg-container); color: var(--texto-principal); border: 2px solid var(--border-cor); padding: 6px 12px; text-decoration: none; font-weight: bold; }
+        .paginacao a:hover { background: var(--texto-principal); color: var(--bg-container); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header-painel">
+            <h2>📋 Logs de Auditoria</h2>
+            <a href="/admin" class="btn-voltar">Voltar ao Painel</a>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Data/Hora</th>
+                    <th>Usuário</th>
+                    <th>Ação</th>
+                    <th>Detalhes</th>
+                    <th>IP</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not logs %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 25px; color: var(--texto-secundario);">Nenhum log registrado ainda.</td>
+                </tr>
+                {% endif %}
+                {% for log in logs %}
+                <tr>
+                    <td style="white-space: nowrap;">{{ log.data }}</td>
+                    <td><strong>{{ log.usuario }}</strong></td>
+                    <td><span class="badge-log badge-{{ log.acao }}">{{ log.acao|upper }}</span></td>
+                    <td>{{ log.detalhes }}</td>
+                    <td>{{ log.ip }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="paginacao">
+            {% if pagina > 1 %}
+                <a href="/logs?pagina={{ pagina - 1 }}">⬅ Anterior</a>
+            {% endif %}
+            <a href="/logs?pagina={{ pagina + 1 }}">Próxima ➡</a>
+        </div>
+</body>
+</html>
