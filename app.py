@@ -17,8 +17,56 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 
 
 def get_db_connection():
-    """Conecta ao PostgreSQL do Supabase (via psycopg v3 - compatível Python 3.14)"""
-    return psycopg.connect(DATABASE_URL, sslmode='require')
+    """Conecta ao PostgreSQL do Supabase (via psycopg v3)"""
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL não configurada!")
+    
+    # A URL do Supabase já vem com sslmode=require no final
+    # Ex: postgresql://postgres:senha@db.xxx.supabase.co:5432/postgres?sslmode=require
+    try:
+        conn = psycopg.connect(DATABASE_URL)
+        return conn
+    except Exception as e:
+        print(f"❌ ERRO AO CONECTAR NO BANCO: {e}")
+        # Tenta sem sslmode se falhar
+        try:
+            clean_url = DATABASE_URL.split('?')[0]  # Remove query params
+            conn = psycopg.connect(clean_url, sslmode='require')
+            return conn
+        except Exception as e2:
+            print(f"❌ SEGUNDA TENTATIVA TAMBÉM FALHOU: {e2}")
+            raise
+
+
+def init_db():
+    """Cria a tabela chamados se não existir (executado na inicialização)"""
+    try:
+        print("🔄 Inicializando banco de dados...")
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS chamados (
+                id SERIAL PRIMARY KEY,
+                codigo_os VARCHAR(20) UNIQUE NOT NULL,
+                cliente VARCHAR(200) NOT NULL,
+                empresa VARCHAR(200) NOT NULL,
+                whatsapp VARCHAR(50) NOT NULL,
+                descricao TEXT NOT NULL,
+                marca VARCHAR(100) DEFAULT 'Não informado',
+                modelo VARCHAR(100) DEFAULT 'Não informado',
+                urgencia VARCHAR(20) DEFAULT 'Média',
+                status VARCHAR(50) DEFAULT 'Aberto',
+                tecnico_responsavel VARCHAR(50) DEFAULT 'Nenhum',
+                data_abertura TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("✅ Tabela 'chamados' verificada/criada com sucesso!")
+    except Exception as e:
+        print(f"⚠️  Erro ao inicializar banco: {e}")
+        print("⚠️  O site pode funcionar, mas a página admin dará erro 500")
 
 
 def supabase_storage_upload(nome_arquivo, conteudo_bytes):
@@ -273,6 +321,9 @@ def dashboard():
                            total_criticos=total_criticos, ranking_tecnicos=ranking_tecnicos,
                            top_clientes=top_clientes)
 
+
+# Inicializa o banco de dados (cria tabela se não existir)
+init_db()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
