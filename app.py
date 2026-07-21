@@ -219,7 +219,12 @@ def enviar_chamado():
         "tecnico_responsavel": "Nenhum"
     }
 
-    api_post("chamados", dados_chamado)
+    try:
+        resultado = api_post("chamados", dados_chamado)
+        print(f"✅ Chamado criado: {codigo_gerado} - Resultado: {resultado}")
+    except Exception as e:
+        print(f"❌ Erro ao criar chamado: {e}")
+        return f"Erro ao criar chamado: {e}", 500
 
     # Upload fotos se houver
     if 'fotos' in request.files:
