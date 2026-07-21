@@ -125,15 +125,32 @@ def supabase_storage_upload(nome_arquivo, conteudo_bytes, pasta="rats"):
 
 
 def supabase_storage_download(nome_arquivo, pasta="rats"):
-    """Baixa arquivo do Storage"""
+    """Baixa arquivo do Storage - tenta autenticado primeiro, depois público"""
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+        print("⚠️ SUPABASE_URL/SERVICE_KEY nao configurados para download")
         return None
-    url = f"{SUPABASE_URL}/storage/v1/object/public/{pasta}/{nome_arquivo}"
     headers = {"apikey": SUPABASE_SERVICE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"}
-    resp = requests.get(url, headers=headers)
-    if resp.ok:
-        return resp.content
-    print(f"⚠️ Download {nome_arquivo} de {pasta} falhou: {resp.status_code}")
+    
+    # Tenta com URL autenticada (mais confiável com RLS)
+    url_auth = f"{SUPABASE_URL}/storage/v1/object/{pasta}/{nome_arquivo}"
+    resp_auth = requests.get(url_auth, headers=headers)
+    if resp_auth.ok:
+        return resp_auth.content
+    
+    # Fallback: tenta URL pública
+    url_public = f"{SUPABASE_URL}/storage/v1/object/public/{pasta}/{nome_arquivo}"
+    resp_public = requests.get(url_public, headers=headers)
+    if resp_public.ok:
+        return resp_public.content
+    
+    print(f"⚠️ Download {nome_arquivo} de {pasta} falhou. Auth:{resp_auth.status_code} Public:{resp_public.status_code}")
+    # Log do erro para diagnóstico
+    if resp_auth.status_code == 404 or resp_public.status_code == 404:
+        print(f"   → Arquivo '${nome_arquivo}' nao encontrado no bucket '${pasta}'")
+    elif resp_auth.status_code == 403 or resp_public.status_code == 403:
+        print(f"   → Permissao negada. Verifique as politicas RLS do bucket '${pasta}' no Supabase")
+    elif resp_auth.status_code == 400 or resp_public.status_code == 400:
+        print(f"   → Erro 400. Pode ser nome de arquivo invalido ou bucket nao existe")
     return None
 
 
