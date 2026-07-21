@@ -195,6 +195,9 @@
 </div>
 
 <script>
+    console.log("RAT script iniciado");
+    console.log("PDFLib disponivel:", typeof PDFLib !== 'undefined');
+    
     let coordenadas = {
         cliente: { x: 76, y: 79, label: "Cliente" }, n_ordem: { x: 498, y: 78, label: "Nº Ordem" },
         endereco: { x: 88, y: 92, label: "Endereço" }, cpf_rg: { x: 495, y: 92, label: "CPF/RG" },
@@ -361,6 +364,8 @@
             alert("Erro ao finalizar chamado.");
         });
     }
+
+    window.onload = inicializarInterface;
 
     // === AUTO-PREENCHIMENTO RAT ===
     let clientesRAT = [];
