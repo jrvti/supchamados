@@ -602,6 +602,99 @@ def api_cliente_dados(id):
     return jsonify({}), 404
 
 
+# ==================== ROTAS DA AGENDA ====================
+
+@app.route('/agenda')
+def pagina_agenda():
+    """Página da agenda/calendário"""
+    if not session.get('logado'):
+        return redirect(url_for('login'))
+    
+    # Carrega chamados ativos para vincular
+    chamados = api_get("chamados", {"status": "neq.Finalizado", "order": "codigo_os.asc", "select": "id,codigo_os,cliente,empresa"})
+    
+    # Mês e ano atuais ou da query
+    from datetime import datetime
+    ano = request.args.get('ano', datetime.now().year, type=int)
+    mes = request.args.get('mes', datetime.now().month, type=int)
+    
+    return render_template('agenda.html', chamados=chamados, ano=ano, mes=mes)
+
+
+@app.route('/agenda/api_eventos')
+def api_eventos_agenda():
+    """API que retorna eventos de um mês"""
+    if not session.get('logado'):
+        return jsonify([])
+    
+    from datetime import datetime
+    ano = request.args.get('ano', datetime.now().year, type=int)
+    mes = request.args.get('mes', datetime.now().month, type=int)
+    
+    # Filtra por mês
+    mes_str = f"{ano:04d}-{mes:02d}"
+    eventos = api_get("agenda", {
+        "data_agenda": f"gte.{mes_str}-01",
+        "and": f"(data_agenda.lte.{mes_str}-31)",
+        "order": "data_agenda.asc,id.asc"
+    })
+    
+    # Busca informações dos chamados vinculados
+    for ev in eventos:
+        if ev.get('chamado_id'):
+            chamado = api_get("chamados", {"id": f"eq.{ev['chamado_id']}", "limit": "1", "select": "codigo_os,cliente"})
+            if chamado:
+                ev['codigo_os'] = chamado[0].get('codigo_os', '')
+                ev['cliente_nome'] = chamado[0].get('cliente', '')
+    
+    return jsonify(eventos)
+
+
+@app.route('/agenda/salvar', methods=['POST'])
+def salvar_evento():
+    """Cria ou atualiza evento na agenda"""
+    if not session.get('logado'):
+        return jsonify({"erro": "Não autorizado"}), 401
+    
+    data = request.get_json()
+    evento_id = data.get('id')
+    
+    dados_evento = {
+        "data_agenda": data.get('data_agenda'),
+        "chamado_id": data.get('chamado_id') if data.get('chamado_id') else None,
+        "titulo": data.get('titulo', '').strip(),
+        "descricao": data.get('descricao', '').strip(),
+        "tecnico": data.get('tecnico', '').strip(),
+        "cor": data.get('cor', '#3b82f6')
+    }
+    
+    if not dados_evento['data_agenda']:
+        return jsonify({"erro": "Data é obrigatória"}), 400
+    
+    if evento_id:
+        api_patch("agenda", dados_evento, {"id": f"eq.{evento_id}"})
+        registrar_log("agenda_editar", f"Evento '{dados_evento['titulo']}' editado em {dados_evento['data_agenda']}")
+    else:
+        api_post("agenda", dados_evento)
+        registrar_log("agenda_criar", f"Evento '{dados_evento['titulo']}' criado em {dados_evento['data_agenda']}")
+    
+    return jsonify({"sucesso": True}), 200
+
+
+@app.route('/agenda/<int:id>/excluir', methods=['POST'])
+def excluir_evento(id):
+    """Exclui evento da agenda"""
+    if not session.get('logado'):
+        return jsonify({"erro": "Não autorizado"}), 401
+    
+    dados = api_get("agenda", {"id": f"eq.{id}", "limit": "1"})
+    titulo = dados[0].get('titulo', '') if dados else ''
+    api_delete("agenda", {"id": f"eq.{id}"})
+    registrar_log("agenda_excluir", f"Evento '{titulo}' excluído")
+    
+    return jsonify({"sucesso": True}), 200
+
+
 # Inicializa
 init_db()
 

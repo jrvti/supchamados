@@ -1,0 +1,243 @@
+<![CDATA[<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Agenda - JRV-TI</title>
+    <style>
+        :root { --bg-geral: #f9f9f9; --bg-container: #ffffff; --texto-principal: #000000; --texto-secundario: #666666; --border-cor: #000000; --bg-celula: #f5f5f5; }
+        [data-theme="dark"] { --bg-geral: #121212; --bg-container: #1e1e1e; --texto-principal: #ffffff; --texto-secundario: #aaaaaa; --border-cor: #ffffff; --bg-celula: #282828; }
+        body { font-family:'Segoe UI',Arial,sans-serif; background:var(--bg-geral); color:var(--texto-principal); padding:20px; margin:0; transition:background .2s,color .2s; }
+        .container { max-width:1100px; background:var(--bg-container); padding:25px; margin:auto; border:2px solid var(--border-cor); }
+        .header { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border-cor); padding-bottom:15px; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
+        h2 { color:var(--texto-principal); margin:0; text-transform:uppercase; font-size:20px; }
+        .btn-header { background:var(--bg-container); color:var(--texto-principal); border:2px solid var(--border-cor); padding:6px 12px; text-decoration:none; font-weight:bold; font-size:12px; text-transform:uppercase; cursor:pointer; white-space:nowrap; }
+        .btn-header:hover { background:var(--texto-principal); color:var(--bg-container); }
+
+        /* Navegação de meses */
+        .nav-mes { display:flex; align-items:center; justify-content:center; gap:15px; margin-bottom:20px; }
+        .nav-mes h3 { margin:0; font-size:18px; text-transform:uppercase; min-width:200px; text-align:center; }
+        .btn-mes { background:var(--bg-container); color:var(--texto-principal); border:2px solid var(--border-cor); padding:8px 16px; text-decoration:none; font-weight:bold; font-size:14px; cursor:pointer; }
+        .btn-mes:hover { background:var(--texto-principal); color:var(--bg-container); }
+
+        /* Calendário */
+        .calendario { width:100%; border-collapse:collapse; table-layout:fixed; }
+        .calendario th { background:var(--texto-principal); color:var(--bg-container); padding:8px; text-transform:uppercase; font-size:12px; border:1px solid var(--border-cor); }
+        .calendario td { vertical-align:top; height:100px; width:14.28%; padding:5px; border:1px solid var(--border-cor); background:var(--bg-celula); position:relative; cursor:pointer; }
+        .calendario td.other-month { opacity:0.3; }
+        .calendario td.today { background:var(--texto-principal); color:var(--bg-container); }
+        .num-dia { font-weight:bold; font-size:14px; margin-bottom:3px; display:block; }
+        .evento-dia { font-size:10px; padding:2px 4px; margin:1px 0; border-radius:2px; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+        .evento-dia:hover { opacity:0.8; }
+
+        /* Modal */
+        .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:99999; justify-content:center; align-items:center; }
+        .modal-overlay.active { display:flex; }
+        .modal-box { background:var(--bg-container); border:2px solid var(--border-cor); padding:25px; max-width:450px; width:90%; max-height:80vh; overflow-y:auto; }
+        .modal-box h3 { margin-top:0; text-transform:uppercase; border-bottom:2px solid var(--border-cor); padding-bottom:10px; }
+        label { display:block; font-size:12px; font-weight:bold; text-transform:uppercase; margin-top:10px; color:var(--texto-secundario); }
+        input, select, textarea { width:100%; padding:8px; border:2px solid var(--border-cor); background:var(--bg-container); color:var(--texto-principal); font-size:13px; margin-top:3px; box-sizing:border-box; }
+        textarea { resize:vertical; height:60px; }
+        .modal-acoes { display:flex; gap:8px; margin-top:15px; }
+        .btn-salvar { flex:1; background:var(--texto-principal); color:var(--bg-container); border:none; padding:10px; font-weight:bold; text-transform:uppercase; cursor:pointer; border:2px solid var(--border-cor); }
+        .btn-salvar:hover { background:var(--bg-container); color:var(--texto-principal); }
+        .btn-cancelar { background:var(--bg-container); color:var(--texto-principal); border:2px solid var(--border-cor); padding:10px; font-weight:bold; cursor:pointer; }
+        .btn-excluir-evento { background:var(--bg-container); color:#cc0000; border:2px solid #cc0000; padding:10px; font-weight:bold; cursor:pointer; }
+        .btn-excluir-evento:hover { background:#cc0000; color:#fff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>📅 Agenda</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button id="theme-toggle" class="btn-header">🌙 Modo Escuro</button>
+                <a href="/admin" class="btn-header">← Painel</a>
+            </div>
+        </div>
+
+        <div class="nav-mes">
+            {% set meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'] %}
+            {% set mes_ant = mes - 1 if mes > 1 else 12 %}
+            {% set ano_ant = ano if mes > 1 else ano - 1 %}
+            {% set mes_prox = mes + 1 if mes < 12 else 1 %}
+            {% set ano_prox = ano if mes < 12 else ano + 1 %}
+            <a href="/agenda?mes={{ mes_ant }}&ano={{ ano_ant }}" class="btn-mes">‹ {{ meses[mes_ant-1] }}</a>
+            <h3>{{ meses[mes-1] }} {{ ano }}</h3>
+            <a href="/agenda?mes={{ mes_prox }}&ano={{ ano_prox }}" class="btn-mes">{{ meses[mes_prox-1] }} ›</a>
+        </div>
+
+        <table class="calendario" id="tabelaCalendario">
+            <thead><tr><th>Dom</th><th>Seg</th><th>Ter</th><th>Qua</th><th>Qui</th><th>Sex</th><th>Sáb</th></tr></thead>
+            <tbody id="corpoCalendario"></tbody>
+        </table>
+    </div>
+
+    <!-- MODAL -->
+    <div class="modal-overlay" id="modalEvento">
+        <div class="modal-box">
+            <h3 id="modalTitulo">Novo Evento</h3>
+            <input type="hidden" id="ev_id">
+            <label>Data</label>
+            <input type="date" id="ev_data">
+            <label>Vincular Chamado (opcional)</label>
+            <select id="ev_chamado">
+                <option value="">— Nenhum —</option>
+                {% for c in chamados %}
+                <option value="{{ c.id }}">{{ c.codigo_os }} — {{ c.cliente }} ({{ c.empresa }})</option>
+                {% endfor %}
+            </select>
+            <label>Título do Evento</label>
+            <input type="text" id="ev_titulo" placeholder="Ex: Visita técnica">
+            <label>Técnico Responsável</label>
+            <select id="ev_tecnico">
+                <option value="tecnicon1">N1 - Maciel</option>
+                <option value="tecnicon2">N2 - Adams</option>
+                <option value="tecsenior">N3 - Jaime</option>
+            </select>
+            <label>Cor</label>
+            <input type="color" id="ev_cor" value="#3b82f6">
+            <label>Descrição</label>
+            <textarea id="ev_descricao" placeholder="Observações..."></textarea>
+            <div class="modal-acoes">
+                <button class="btn-cancelar" onclick="fecharModal()">Cancelar</button>
+                <button class="btn-excluir-evento" id="btnExcluir" style="display:none;" onclick="excluirEvento()">🗑️ Excluir</button>
+                <button class="btn-salvar" onclick="salvarEvento()">💾 Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const t=document.getElementById('theme-toggle'),c=localStorage.getItem('theme');
+        if(c==='dark'){document.documentElement.setAttribute('data-theme','dark');t.textContent='☀️ Modo Claro';}
+        t.addEventListener('click',()=>{
+            if(document.documentElement.getAttribute('data-theme')!=='dark'){
+                document.documentElement.setAttribute('data-theme','dark');t.textContent='☀️ Modo Claro';localStorage.setItem('theme','dark');
+            }else{
+                document.documentElement.removeAttribute('data-theme');t.textContent='🌙 Modo Escuro';localStorage.setItem('theme','light');
+            }
+        });
+
+        const mes = {{ mes }};
+        const ano = {{ ano }};
+        const nomesDias = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+        let eventos = [];
+
+        function getDiasNoMes(m, a) { return new Date(a, m, 0).getDate(); }
+
+        async function carregarEventos() {
+            try {
+                const resp = await fetch(`/agenda/api_eventos?mes=${mes}&ano=${ano}`);
+                eventos = await resp.json();
+                renderizarCalendario();
+            } catch(e) { console.error('Erro ao carregar eventos:', e); }
+        }
+
+        function renderizarCalendario() {
+            const tbody = document.getElementById('corpoCalendario');
+            tbody.innerHTML = '';
+            const primeiroDia = new Date(ano, mes-1, 1).getDay();
+            const diasNoMes = getDiasNoMes(mes, ano);
+            const hoje = new Date();
+            
+            let dia = 1;
+            for (let linha = 0; linha < 6; linha++) {
+                if (dia > diasNoMes) break;
+                const tr = document.createElement('tr');
+                for (let col = 0; col < 7; col++) {
+                    const td = document.createElement('td');
+                    if (linha === 0 && col < primeiroDia) {
+                        td.classList.add('other-month');
+                    } else if (dia > diasNoMes) {
+                        td.classList.add('other-month');
+                    } else {
+                        const dataStr = `${ano}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+                        const isHoje = hoje.getDate() === dia && hoje.getMonth() === mes-1 && hoje.getFullYear() === ano;
+                        if (isHoje) td.classList.add('today');
+                        
+                        td.innerHTML = `<span class="num-dia">${dia}</span>`;
+                        
+                        // Eventos deste dia
+                        eventos.filter(e => e.data_agenda === dataStr).forEach(ev => {
+                            const div = document.createElement('div');
+                            div.className = 'evento-dia';
+                            div.style.background = ev.cor || '#3b82f6';
+                            div.textContent = ev.codigo_os ? `${ev.codigo_os} - ${ev.titulo || ev.tecnico}` : (ev.titulo || ev.tecnico);
+                            div.onclick = (e) => { e.stopPropagation(); abrirModalEditar(ev); };
+                            td.appendChild(div);
+                        });
+                        
+                        td.onclick = () => abrirModalNovo(dataStr);
+                        dia++;
+                    }
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+        }
+
+        function abrirModalNovo(dataStr) {
+            document.getElementById('modalTitulo').textContent = '➕ Novo Evento - ' + dataStr;
+            document.getElementById('ev_id').value = '';
+            document.getElementById('ev_data').value = dataStr;
+            document.getElementById('ev_chamado').value = '';
+            document.getElementById('ev_titulo').value = '';
+            document.getElementById('ev_tecnico').value = 'tecnicon1';
+            document.getElementById('ev_cor').value = '#3b82f6';
+            document.getElementById('ev_descricao').value = '';
+            document.getElementById('btnExcluir').style.display = 'none';
+            document.getElementById('modalEvento').classList.add('active');
+        }
+
+        function abrirModalEditar(ev) {
+            document.getElementById('modalTitulo').textContent = '✏️ Editar Evento';
+            document.getElementById('ev_id').value = ev.id;
+            document.getElementById('ev_data').value = ev.data_agenda;
+            document.getElementById('ev_chamado').value = ev.chamado_id || '';
+            document.getElementById('ev_titulo').value = ev.titulo || '';
+            document.getElementById('ev_tecnico').value = ev.tecnico || 'tecnicon1';
+            document.getElementById('ev_cor').value = ev.cor || '#3b82f6';
+            document.getElementById('ev_descricao').value = ev.descricao || '';
+            document.getElementById('btnExcluir').style.display = 'inline-block';
+            document.getElementById('modalEvento').classList.add('active');
+        }
+
+        function fecharModal() { document.getElementById('modalEvento').classList.remove('active'); }
+
+        async function salvarEvento() {
+            const dados = {
+                id: document.getElementById('ev_id').value || null,
+                data_agenda: document.getElementById('ev_data').value,
+                chamado_id: document.getElementById('ev_chamado').value || null,
+                titulo: document.getElementById('ev_titulo').value,
+                tecnico: document.getElementById('ev_tecnico').value,
+                cor: document.getElementById('ev_cor').value,
+                descricao: document.getElementById('ev_descricao').value
+            };
+            if (!dados.data_agenda) { alert('Selecione uma data!'); return; }
+            
+            try {
+                const resp = await fetch('/agenda/salvar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(dados)
+                });
+                if (resp.ok) { fecharModal(); carregarEventos(); }
+                else alert('Erro ao salvar evento');
+            } catch(e) { alert('Erro ao salvar evento'); }
+        }
+
+        async function excluirEvento() {
+            const id = document.getElementById('ev_id').value;
+            if (!id || !confirm('Excluir este evento?')) return;
+            try {
+                const resp = await fetch(`/agenda/${id}/excluir`, { method: 'POST' });
+                if (resp.ok) { fecharModal(); carregarEventos(); }
+                else alert('Erro ao excluir');
+            } catch(e) { alert('Erro ao excluir'); }
+        }
+
+        // Carrega eventos ao iniciar
+        carregarEventos();
+    </script>
+</body>
+</html>]]>
