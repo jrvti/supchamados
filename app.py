@@ -487,6 +487,114 @@ def bulk_excluir():
     return jsonify({"sucesso": True, "mensagem": f"{len(ids)} chamado(s) excluído(s)"}), 200
 
 
+# ==================== ROTAS DE CLIENTES (PERFIS) ====================
+
+@app.route('/clientes')
+def listar_clientes():
+    """Lista todos os clientes cadastrados"""
+    if not session.get('logado'):
+        return redirect(url_for('login'))
+    
+    busca = request.args.get('busca', '')
+    params = {"order": "nome_empresa.asc"}
+    if busca:
+        params["nome_empresa"] = f"ilike.*{busca}*"
+    
+    clientes = api_get("clientes", params)
+    return render_template('clientes.html', clientes=clientes, busca=busca)
+
+
+@app.route('/clientes/api_lista')
+def api_lista_clientes():
+    """Retorna JSON com lista de clientes para preenchimento automático no formulário público"""
+    # Endpoint público - retorna apenas dados não sensíveis
+    clientes = api_get("clientes", {"order": "nome_empresa.asc", "select": "id,nome_empresa,nome_gestor,whatsapp"})
+    return jsonify(clientes)
+
+
+@app.route('/clientes/novo', methods=['GET', 'POST'])
+def novo_cliente():
+    """Cadastra novo cliente"""
+    if not session.get('logado'):
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
+        dados = {
+            "nome_empresa": request.form.get('nome_empresa', '').strip(),
+            "nome_gestor": request.form.get('nome_gestor', '').strip(),
+            "whatsapp": request.form.get('whatsapp', '').strip(),
+            "endereco": request.form.get('endereco', '').strip(),
+            "cnpj_cpf": request.form.get('cnpj_cpf', '').strip(),
+            "observacoes": request.form.get('observacoes', '').strip()
+        }
+        
+        if not dados["nome_empresa"]:
+            return render_template('cliente_form.html', cliente=dados, erro="Nome da empresa é obrigatório")
+        
+        try:
+            api_post("clientes", dados)
+            registrar_log("cliente_cadastro", f"Cliente '{dados['nome_empresa']}' cadastrado")
+            return redirect(url_for('listar_clientes'))
+        except Exception as e:
+            return render_template('cliente_form.html', cliente=dados, erro=f"Erro ao cadastrar: {e}")
+    
+    return render_template('cliente_form.html', cliente={}, erro=None)
+
+
+@app.route('/clientes/<int:id>/editar', methods=['GET', 'POST'])
+def editar_cliente(id):
+    """Edita cliente existente"""
+    if not session.get('logado'):
+        return redirect(url_for('login'))
+    
+    dados = api_get("clientes", {"id": f"eq.{id}", "limit": "1"})
+    if not dados:
+        return "Cliente não encontrado", 404
+    
+    cliente = dados[0]
+    
+    if request.method == 'POST':
+        dados_update = {
+            "nome_empresa": request.form.get('nome_empresa', '').strip(),
+            "nome_gestor": request.form.get('nome_gestor', '').strip(),
+            "whatsapp": request.form.get('whatsapp', '').strip(),
+            "endereco": request.form.get('endereco', '').strip(),
+            "cnpj_cpf": request.form.get('cnpj_cpf', '').strip(),
+            "observacoes": request.form.get('observacoes', '').strip()
+        }
+        
+        if not dados_update["nome_empresa"]:
+            return render_template('cliente_form.html', cliente={**cliente, **dados_update}, erro="Nome da empresa é obrigatório")
+        
+        api_patch("clientes", dados_update, {"id": f"eq.{id}"})
+        registrar_log("cliente_edicao", f"Cliente '{dados_update['nome_empresa']}' editado")
+        return redirect(url_for('listar_clientes'))
+    
+    return render_template('cliente_form.html', cliente=cliente, erro=None)
+
+
+@app.route('/clientes/<int:id>/excluir', methods=['POST'])
+def excluir_cliente(id):
+    """Exclui cliente"""
+    if not session.get('logado'):
+        return redirect(url_for('login'))
+    
+    dados = api_get("clientes", {"id": f"eq.{id}", "limit": "1"})
+    nome = dados[0].get('nome_empresa', '') if dados else ''
+    api_delete("clientes", {"id": f"eq.{id}"})
+    registrar_log("cliente_exclusao", f"Cliente '{nome}' excluído")
+    return redirect(url_for('listar_clientes'))
+
+
+@app.route('/api/cliente/<int:id>')
+def api_cliente_dados(id):
+    """API pública para auto-preenchimento do formulário de chamado"""
+    dados = api_get("clientes", {"id": f"eq.{id}", "limit": "1"})
+    if dados:
+        return jsonify(dados[0])
+    return jsonify({}), 404
+
+
 # Inicializa
 init_db()
 

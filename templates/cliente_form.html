@@ -1,0 +1,74 @@
+<![CDATA[<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>{% if cliente.get('id') %}Editar{% else %}Novo{% endif %} Cliente - JRV-TI</title>
+    <style>
+        :root { --bg-geral: #f9f9f9; --bg-container: #ffffff; --texto-principal: #000000; --texto-secundario: #666666; --border-cor: #000000; }
+        [data-theme="dark"] { --bg-geral: #121212; --bg-container: #1e1e1e; --texto-principal: #ffffff; --texto-secundario: #aaaaaa; --border-cor: #ffffff; }
+        body { font-family:'Segoe UI',Arial,sans-serif; background:var(--bg-geral); color:var(--texto-principal); padding:30px; margin:0; transition:background .2s,color .2s; }
+        .container { max-width:600px; background:var(--bg-container); padding:30px; margin:auto; border:2px solid var(--border-cor); box-shadow:5px 5px 0 var(--border-cor); }
+        .header { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border-cor); padding-bottom:15px; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
+        h2 { color:var(--texto-principal); margin:0; text-transform:uppercase; font-size:20px; }
+        .btn-header { background:var(--bg-container); color:var(--texto-principal); border:2px solid var(--border-cor); padding:6px 12px; text-decoration:none; font-weight:bold; font-size:12px; text-transform:uppercase; cursor:pointer; white-space:nowrap; }
+        .btn-header:hover { background:var(--texto-principal); color:var(--bg-container); }
+        label { font-weight:bold; display:block; margin-bottom:4px; font-size:13px; text-transform:uppercase; margin-top:12px; }
+        input, textarea { width:100%; padding:10px; border:2px solid var(--border-cor); background:var(--bg-container); color:var(--texto-principal); font-size:14px; margin-bottom:5px; box-sizing:border-box; font-family:inherit; }
+        textarea { resize:vertical; height:80px; }
+        .erro { background:#ffe0e0; border:2px solid #cc0000; padding:12px; margin-bottom:15px; font-weight:bold; font-size:13px; color:#cc0000; }
+        .btn-salvar { width:100%; background:var(--texto-principal); color:var(--bg-container); padding:12px; border:none; font-size:15px; font-weight:bold; text-transform:uppercase; border:2px solid var(--border-cor); cursor:pointer; margin-top:15px; }
+        .btn-salvar:hover { background:var(--bg-container); color:var(--texto-principal); }
+        .info-extra { font-size:11px; color:var(--texto-secundario); margin-bottom:10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>{% if cliente.get('id') %}✏️ Editar Cliente{% else %}➕ Novo Cliente{% endif %}</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button id="theme-toggle" class="btn-header">🌙 Modo Escuro</button>
+                <a href="/clientes" class="btn-header">← Voltar</a>
+            </div>
+        </div>
+
+        {% if erro %}
+        <div class="erro">{{ erro }}</div>
+        {% endif %}
+
+        <form method="POST" action="">
+            <label for="nome_empresa">Nome da Empresa *</label>
+            <input type="text" id="nome_empresa" name="nome_empresa" placeholder="Ex: Oxichama, AR2M..." value="{{ cliente.get('nome_empresa', '') }}" required>
+            <div class="info-extra">Nome que aparecerá no select do formulário de chamado</div>
+
+            <label for="nome_gestor">Nome do Gestor / Contato</label>
+            <input type="text" id="nome_gestor" name="nome_gestor" placeholder="Ex: Carlos Silva" value="{{ cliente.get('nome_gestor', '') }}">
+
+            <label for="whatsapp">WhatsApp</label>
+            <input type="text" id="whatsapp" name="whatsapp" placeholder="Ex: (11) 99999-9999" value="{{ cliente.get('whatsapp', '') }}">
+
+            <label for="endereco">Endereço</label>
+            <input type="text" id="endereco" name="endereco" placeholder="Rua, número, bairro, cidade" value="{{ cliente.get('endereco', '') }}">
+
+            <label for="cnpj_cpf">CNPJ / CPF</label>
+            <input type="text" id="cnpj_cpf" name="cnpj_cpf" placeholder="Ex: 00.000.000/0001-00" value="{{ cliente.get('cnpj_cpf', '') }}">
+
+            <label for="observacoes">Observações</label>
+            <textarea id="observacoes" name="observacoes" placeholder="Informações adicionais...">{{ cliente.get('observacoes', '') }}</textarea>
+
+            <button type="submit" class="btn-salvar">💾 Salvar Cliente</button>
+        </form>
+    </div>
+
+    <script>
+        const t=document.getElementById('theme-toggle'),c=localStorage.getItem('theme');
+        if(c==='dark'){document.documentElement.setAttribute('data-theme','dark');t.textContent='☀️ Modo Claro';}
+        t.addEventListener('click',()=>{
+            if(document.documentElement.getAttribute('data-theme')!=='dark'){
+                document.documentElement.setAttribute('data-theme','dark');t.textContent='☀️ Modo Claro';localStorage.setItem('theme','dark');
+            }else{
+                document.documentElement.removeAttribute('data-theme');t.textContent='🌙 Modo Escuro';localStorage.setItem('theme','light');
+            }
+        });
+    </script>
+</body>
+</html>]]>

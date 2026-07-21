@@ -29,7 +29,7 @@
         .header-painel { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--border-cor); padding-bottom: 15px; margin-bottom: 20px; gap: 15px; }
         h2 { color: var(--texto-principal); margin: 0; text-transform: uppercase; font-size: 20px; white-space: nowrap; }
 
-        .acoes-header { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+        .acoes-header { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 
         .user-block { display: flex; align-items: center; gap: 5px; }
         .user-badge { font-size: 12px; background: var(--badge-bg); color: var(--texto-principal); padding: 6px 10px; border: 1px solid var(--border-cor); font-weight: bold; text-transform: uppercase; white-space: nowrap; }
@@ -71,8 +71,9 @@
                 <button id="theme-toggle" class="btn-theme-toggle">🌙 Modo Escuro</button>
                 <a href="/" target="_blank" class="btn-novo-chamado">➕ Criar Chamado</a>
                 <a href="/rat_avulsa" class="btn-rat-avulsa">📝 Nova RAT</a>
-                <a href="/dashboard" class="btn-dashboard">📊 Ver Dashboard</a>
-                <a href="/arquivados" class="btn-arquivados">📁 Ver Chamados Fechados</a>
+                <a href="/dashboard" class="btn-dashboard">📊 Dashboard</a>
+                <a href="/clientes" class="btn-dashboard">👥 Clientes</a>
+                <a href="/arquivados" class="btn-arquivados">📁 Fechados</a>
                 <a href="/logs" class="btn-arquivados">📋 Logs</a>
                 <div class="user-block">
                     <span class="user-badge">{% if tecnico_atual == 'tecnicon1' %}N1 - Maciel{% elif tecnico_atual == 'tecnicon2' %}N2 - Adams{% elif tecnico_atual == 'tecsenior' %}N3 - Jaime{% else %}{{ tecnico_atual }}{% endif %}</span>

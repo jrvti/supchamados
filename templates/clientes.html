@@ -1,0 +1,98 @@
+<![CDATA[<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestão de Clientes - JRV-TI</title>
+    <style>
+        :root { --bg-geral: #f9f9f9; --bg-container: #ffffff; --texto-principal: #000000; --texto-secundario: #666666; --bg-tabela-par: #f2f2f2; --border-cor: #000000; --badge-bg: #eeeeee; }
+        [data-theme="dark"] { --bg-geral: #121212; --bg-container: #1e1e1e; --texto-principal: #ffffff; --texto-secundario: #aaaaaa; --bg-tabela-par: #2a2a2a; --border-cor: #ffffff; --badge-bg: #333333; }
+        body { font-family:'Segoe UI',Arial,sans-serif; background:var(--bg-geral); color:var(--texto-principal); padding:30px; margin:0; transition:background .2s,color .2s; }
+        .container { max-width:1100px; background:var(--bg-container); padding:25px; margin:auto; border:2px solid var(--border-cor); }
+        .header { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border-cor); padding-bottom:15px; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
+        h2 { color:var(--texto-principal); margin:0; text-transform:uppercase; font-size:20px; }
+        .btn-header { background:var(--bg-container); color:var(--texto-principal); border:2px solid var(--border-cor); padding:6px 12px; text-decoration:none; font-weight:bold; font-size:12px; text-transform:uppercase; cursor:pointer; white-space:nowrap; }
+        .btn-header:hover { background:var(--texto-principal); color:var(--bg-container); }
+        .btn-novo { background:var(--texto-principal); color:var(--bg-container); border:2px solid var(--border-cor); padding:8px 16px; text-decoration:none; font-weight:bold; font-size:13px; text-transform:uppercase; display:inline-block; }
+        .btn-novo:hover { background:var(--bg-container); color:var(--texto-principal); }
+        .busca-container { margin-bottom:20px; display:flex; gap:10px; }
+        .input-busca { flex:1; padding:10px; border:2px solid var(--border-cor); background:var(--bg-container); color:var(--texto-principal); font-size:14px; font-weight:bold; }
+        .btn-busca { background:var(--texto-principal); color:var(--bg-container); border:none; padding:10px 20px; font-weight:bold; cursor:pointer; text-transform:uppercase; border:2px solid var(--border-cor); }
+        table { width:100%; border-collapse:collapse; font-size:14px; }
+        th, td { padding:10px 12px; border:1px solid var(--border-cor); text-align:left; vertical-align:middle; }
+        th { background-color:var(--texto-principal); color:var(--bg-container); font-weight:600; text-transform:uppercase; font-size:12px; }
+        tr:nth-child(even) { background-color:var(--bg-tabela-par); }
+        .acoes { display:flex; gap:5px; flex-wrap:nowrap; }
+        .btn-editar { background:var(--bg-container); color:var(--texto-principal); border:1px solid var(--border-cor); padding:4px 10px; text-decoration:none; font-weight:bold; font-size:11px; text-transform:uppercase; }
+        .btn-editar:hover { background:var(--texto-principal); color:var(--bg-container); }
+        .btn-excluir { background:var(--bg-container); color:#cc0000; border:1px solid #cc0000; padding:4px 10px; font-weight:bold; cursor:pointer; font-size:11px; text-transform:uppercase; }
+        .btn-excluir:hover { background:#cc0000; color:#ffffff; }
+        .obs-cell { max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--texto-secundario); font-size:12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>👥 Gestão de Clientes</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button id="theme-toggle" class="btn-header">🌙 Modo Escuro</button>
+                <a href="/admin" class="btn-header">← Painel</a>
+                <a href="/clientes/novo" class="btn-novo">➕ Novo Cliente</a>
+            </div>
+        </div>
+
+        <form method="GET" action="/clientes" class="busca-container">
+            <input type="text" name="busca" class="input-busca" placeholder="Pesquisar por nome da empresa..." value="{{ busca }}">
+            <button type="submit" class="btn-busca">🔍 Buscar</button>
+        </form>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Empresa</th>
+                    <th>Gestor</th>
+                    <th>WhatsApp</th>
+                    <th>Endereço</th>
+                    <th>CNPJ/CPF</th>
+                    <th>Obs</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if not clientes %}
+                <tr><td colspan="7" style="text-align:center;padding:25px;color:var(--texto-secundario);">Nenhum cliente cadastrado ainda. <a href="/clientes/novo" style="color:var(--texto-principal);font-weight:bold;">Cadastre o primeiro!</a></td></tr>
+                {% endif %}
+                {% for c in clientes %}
+                <tr>
+                    <td><strong>{{ c.nome_empresa }}</strong></td>
+                    <td>{{ c.nome_gestor or '' }}</td>
+                    <td>{{ c.whatsapp or '' }}</td>
+                    <td style="font-size:12px;">{{ c.endereco or '' }}</td>
+                    <td style="font-size:12px;">{{ c.cnpj_cpf or '' }}</td>
+                    <td class="obs-cell">{{ c.observacoes or '' }}</td>
+                    <td>
+                        <div class="acoes">
+                            <a href="/clientes/{{ c.id }}/editar" class="btn-editar">✏️ Editar</a>
+                            <form action="/clientes/{{ c.id }}/excluir" method="POST" style="margin:0;" onsubmit="return confirm('Excluir cliente {{ c.nome_empresa }}? Essa ação não pode ser desfeita.');">
+                                <button type="submit" class="btn-excluir">🗑️ Excluir</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const t=document.getElementById('theme-toggle'),c=localStorage.getItem('theme');
+        if(c==='dark'){document.documentElement.setAttribute('data-theme','dark');t.textContent='☀️ Modo Claro';}
+        t.addEventListener('click',()=>{
+            if(document.documentElement.getAttribute('data-theme')!=='dark'){
+                document.documentElement.setAttribute('data-theme','dark');t.textContent='☀️ Modo Claro';localStorage.setItem('theme','dark');
+            }else{
+                document.documentElement.removeAttribute('data-theme');t.textContent='🌙 Modo Escuro';localStorage.setItem('theme','light');
+            }
+        });
+    </script>
+</body>
+</html>]]>
