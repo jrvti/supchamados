@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS chamados (
     urgencia VARCHAR(20) DEFAULT 'Média',
     status VARCHAR(50) DEFAULT 'Aberto',
     tecnico_responsavel VARCHAR(50) DEFAULT 'Nenhum',
+    categoria VARCHAR(50) DEFAULT 'Outros',
     data_abertura TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -37,6 +37,17 @@
                 <div><label for="marca">Marca (Opcional):</label><input type="text" id="marca" name="marca" placeholder="Intelbras, Hikvision, ASUS..."></div>
                 <div><label for="modelo">Modelo / Tipo (Opcional):</label><input type="text" id="modelo" name="modelo" placeholder="DVR, Câmera, Computador..."></div>
             </div>
+            <label for="categoria">Categoria do Problema:</label>
+            <select id="categoria" name="categoria" style="width:100%;padding:10px;border:2px solid var(--border-cor);background:var(--bg-container);color:var(--texto-principal);font-size:14px;margin-bottom:15px;box-sizing:border-box;">
+                <option value="Hardware">💻 Hardware</option>
+                <option value="Software">📀 Software</option>
+                <option value="Rede">🌐 Rede</option>
+                <option value="CFTV">📹 CFTV</option>
+                <option value="Alarme">🔔 Alarme</option>
+                <option value="Impressora">🖨️ Impressora</option>
+                <option value="Outros">🔧 Outros</option>
+            </select>
+
             <label for="descricao">Descrição Detalhada do Problema:</label>
             <textarea id="descricao" name="descricao" placeholder="Descreva aqui o que está acontecendo com o sistema ou equipamento técnico..." required></textarea>
             <label for="fotos">Anexar Fotos (opcional):</label>

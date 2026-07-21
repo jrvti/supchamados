@@ -200,6 +200,7 @@ def enviar_chamado():
     whatsapp = request.form.get('whatsapp')
     marca = request.form.get('marca', 'Não informado')
     modelo = request.form.get('modelo', 'Não informado')
+    categoria = request.form.get('categoria', 'Outros')
     descricao = request.form.get('descricao')
     descricao_final = f"Equipamento: {marca} / {modelo} | Problema: {descricao}"
     codigo_gerado = gerar_codigo_os()
@@ -212,6 +213,7 @@ def enviar_chamado():
         "descricao": descricao_final,
         "marca": marca,
         "modelo": modelo,
+        "categoria": categoria,
         "urgencia": "Média",
         "status": "Aberto",
         "tecnico_responsavel": "Nenhum"
@@ -288,7 +290,7 @@ def admin():
     busca = request.args.get('busca', '')
     params = {"status": "neq.Finalizado", "order": "id.desc"}
     if busca:
-        params["or"] = f"(codigo_os.ilike.*{busca}*,cliente.ilike.*{busca}*,empresa.ilike.*{busca}*,descricao.ilike.*{busca}*)"
+        params["or"] = f"(codigo_os.ilike.*{busca}*,cliente.ilike.*{busca}*,empresa.ilike.*{busca}*,categoria.ilike.*{busca}*,descricao.ilike.*{busca}*)"
 
     chamados = api_get("chamados", params)
     return render_template('admin.html', chamados=chamados, tecnico_atual=session.get('usuario'), busca=busca)
