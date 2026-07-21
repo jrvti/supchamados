@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<![CDATA[<!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
@@ -8,9 +8,9 @@
         [data-theme="dark"] { --bg-geral: #121212; --bg-container: #1e1e1e; --texto-principal: #ffffff; --texto-secundario: #cccccc; --border-cor: #ffffff; --bg-info: #282828; }
         body { font-family:'Segoe UI',Arial,sans-serif; background:var(--bg-geral); color:var(--texto-principal); padding:30px; margin:0; transition:background .2s,color .2s; }
         .container { max-width:700px; background:var(--bg-container); padding:30px; margin:auto; border:2px solid var(--border-cor); box-shadow:5px 5px 0 var(--border-cor); }
-        .header-detalhes { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border-cor); padding-bottom:15px; margin-bottom:20px; }
+        .header-detalhes { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border-cor); padding-bottom:15px; margin-bottom:20px; flex-wrap: wrap; gap: 10px; }
         h2 { color:var(--texto-principal); margin:0; text-transform:uppercase; font-size:20px; }
-        .btn-voltar,.btn-theme-toggle { background:var(--bg-container); color:var(--texto-principal); border:2px solid var(--border-cor); padding:6px 12px; text-decoration:none; font-weight:bold; font-size:13px; text-transform:uppercase; cursor:pointer; }
+        .btn-voltar,.btn-theme-toggle { background:var(--bg-container); color:var(--texto-principal); border:2px solid var(--border-cor); padding:6px 12px; text-decoration:none; font-weight:bold; font-size:13px; text-transform:uppercase; cursor:pointer; white-space:nowrap; }
         .btn-voltar:hover,.btn-theme-toggle:hover { background:var(--texto-principal); color:var(--bg-container); }
         .info-box { background:var(--bg-info); border:1px solid var(--border-cor); padding:20px; margin-bottom:15px; }
         .info-row { margin-bottom:12px; font-size:15px; border-bottom:1px dashed var(--border-cor); padding-bottom:8px; }
@@ -46,10 +46,11 @@
     <div class="container">
         <div class="header-detalhes">
             <h2>Ficha O.S: {{ chamado.codigo_os }}</h2>
-            <div style="display:flex;gap:10px;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
                 <button id="theme-toggle" class="btn-theme-toggle">🌙 Modo Escuro</button>
-                <a href="/admin" class="btn-voltar">Voltar</a>
+                <a href="/admin" class="btn-voltar">← Voltar</a>
             </div>
+        </div>
 
         <div class="info-box">
             <div class="info-row"><span class="label">Solicitante</span><strong>{{ chamado.cliente }}</strong></div>
@@ -57,12 +58,21 @@
             <div class="info-row"><span class="label">WhatsApp de Contato</span>{{ chamado.whatsapp }}</div>
             <div class="info-row"><span class="label">Data de Registro</span>{{ chamado.data_abertura }}</div>
             <div class="info-row"><span class="label">Status Atual</span><strong>{{ chamado.status|upper }}</strong></div>
-            <div class="info-row"><span class="label">Descrição Completa da Ocorrência</span><div class="descricao-longa">{{ chamado.descricao }}</div>
+            <div class="info-row"><span class="label">Descrição Completa da Ocorrência</span>
+                <div class="descricao-longa">{{ chamado.descricao }}</div>
+            </div>
         </div>
 
         {% if chamado.tecnico_responsavel and chamado.tecnico_responsavel != 'Nenhum' %}
         <div class="info-box">
-            <div class="info-row"><span class="label">Técnico Responsável</span>{% if chamado.tecnico_responsavel == 'tecnicon1' %}N1 - Maciel{% elif chamado.tecnico_responsavel == 'tecnicon2' %}N2 - Adams{% elif chamado.tecnico_responsavel == 'tecsenior' %}N3 - Jaime{% else %}{{ chamado.tecnico_responsavel }}{% endif %}</div>
+            <div class="info-row">
+                <span class="label">Técnico Responsável</span>
+                {% if chamado.tecnico_responsavel == 'tecnicon1' %}N1 - Maciel
+                {% elif chamado.tecnico_responsavel == 'tecnicon2' %}N2 - Adams
+                {% elif chamado.tecnico_responsavel == 'tecsenior' %}N3 - Jaime
+                {% else %}{{ chamado.tecnico_responsavel }}{% endif %}
+            </div>
+        </div>
         {% endif %}
 
         {% if fotos %}
@@ -77,12 +87,27 @@
                     </div>
                     {% endfor %}
                 </div>
+            </div>
         </div>
         {% endif %}
 
         {% if logs %}
         <div class="info-box">
-            <div class="info-row"><span class="label">Histórico de Atividades</span>{% for log in logs %}<div class="log-item"><strong>{{ log.data[:16] }}</strong> — {% if log.acao == 'login' %}🔓 Login{% elif log.acao == 'logout' %}🔒 Logout{% elif log.acao == 'alteracao' %}✏️ Alteração{% elif log.acao == 'finalizacao' %}✅ Finalização{% elif log.acao == 'exclusao' %}🗑️ Exclusão{% else %}{{ log.acao }}{% endif %}: {{ log.detalhes }}</div>{% endfor %}</div>
+            <div class="info-row">
+                <span class="label">Histórico de Atividades</span>
+                {% for log in logs %}
+                <div class="log-item">
+                    <strong>{{ log.data[:16] or log.criado_em[:16] or '' }}</strong> — 
+                    {% if log.acao == 'login' %}🔓 Login
+                    {% elif log.acao == 'logout' %}🔒 Logout
+                    {% elif log.acao == 'alteracao' %}✏️ Alteração
+                    {% elif log.acao == 'finalizacao' %}✅ Finalização
+                    {% elif log.acao == 'exclusao' %}🗑️ Exclusão
+                    {% else %}{{ log.acao }}{% endif %}: {{ log.detalhes }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
         {% endif %}
     </div>
 
@@ -95,6 +120,7 @@
             <img id="lightboxImg" src="" alt="Foto ampliada">
         </div>
         <div class="lightbox-counter" id="lightboxCounter"></div>
+    </div>
 
     <script>
         const t=document.getElementById('theme-toggle'),c=localStorage.getItem('theme');
@@ -153,4 +179,4 @@
         });
     </script>
 </body>
-</html>
+</html>]]>
