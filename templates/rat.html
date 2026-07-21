@@ -300,6 +300,7 @@
 
     function alternarMiras() {
         const btn = document.getElementById('btnMiras');
+        if (!container) return;
         if (container.classList.contains('ocultar-pontos')) { container.classList.remove('ocultar-pontos'); btn.innerText = "Ocultar Pontos de Ajuste"; }
         else { container.classList.add('ocultar-pontos'); btn.innerText = "Exibir Pontos de Ajuste"; }
     }
