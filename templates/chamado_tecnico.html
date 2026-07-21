@@ -1,0 +1,123 @@
+<![CDATA[<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Abrir Chamado - Técnico - JRV-TI</title>
+    <style>
+        :root { --bg-geral: #f9f9f9; --bg-container: #ffffff; --texto-principal: #000000; --texto-secundario: #666666; --border-cor: #000000; --badge-bg: #eeeeee; }
+        [data-theme="dark"] { --bg-geral: #121212; --bg-container: #1e1e1e; --texto-principal: #ffffff; --texto-secundario: #aaaaaa; --border-cor: #ffffff; --badge-bg: #333333; }
+        body { font-family:'Segoe UI',Arial,sans-serif; background:var(--bg-geral); color:var(--texto-principal); padding:30px; margin:0; transition:background .2s,color .2s; }
+        .container { max-width:600px; background:var(--bg-container); padding:30px; margin:auto; border:2px solid var(--border-cor); box-shadow:5px 5px 0 var(--border-cor); }
+        .header { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border-cor); padding-bottom:15px; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
+        h2 { color:var(--texto-principal); margin:0; text-transform:uppercase; font-size:20px; }
+        .btn-header { background:var(--bg-container); color:var(--texto-principal); border:2px solid var(--border-cor); padding:6px 12px; text-decoration:none; font-weight:bold; font-size:12px; text-transform:uppercase; cursor:pointer; white-space:nowrap; }
+        .btn-header:hover { background:var(--texto-principal); color:var(--bg-container); }
+        label { font-weight:bold; display:block; margin-bottom:4px; font-size:13px; text-transform:uppercase; margin-top:10px; }
+        input, textarea, select { width:100%; padding:10px; border:2px solid var(--border-cor); background:var(--bg-container); color:var(--texto-principal); font-size:14px; margin-bottom:5px; box-sizing:border-box; font-family:inherit; }
+        textarea { resize:vertical; height:80px; }
+        .flex-duo { display:flex; gap:10px; }
+        .flex-duo div { flex:1; }
+        .btn-enviar { width:100%; background:var(--texto-principal); color:var(--bg-container); padding:12px; border:none; font-size:15px; font-weight:bold; text-transform:uppercase; border:2px solid var(--border-cor); cursor:pointer; margin-top:15px; }
+        .btn-enviar:hover { background:var(--bg-container); color:var(--texto-principal); }
+        .info-ajuda { font-size:11px; color:var(--texto-secundario); margin-bottom:12px; }
+        select { cursor:pointer; appearance:auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>🔧 Abrir Chamado (Técnico)</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button id="theme-toggle" class="btn-header">🌙 Modo Escuro</button>
+                <a href="/admin" class="btn-header">← Voltar</a>
+            </div>
+        </div>
+
+        <form action="/enviar_chamado" method="POST" enctype="multipart/form-data">
+            <label for="perfil_cliente">📋 Cliente / Contrato (auto-preenchimento):</label>
+            <select id="perfil_cliente" name="perfil_cliente" onchange="preencherCliente(this)">
+                <option value="">— Atendimento Avulso (preencher manualmente) —</option>
+            </select>
+            <div class="info-ajuda">Selecione um cliente cadastrado para preencher os dados automaticamente</div>
+
+            <label for="cliente">Solicitante / Gestor:</label>
+            <input type="text" id="cliente" name="cliente" placeholder="Ex: Carlos Silva" required>
+
+            <label for="empresa">Empresa / Condomínio:</label>
+            <input type="text" id="empresa" name="empresa" placeholder="Ex: Oxichama, AR2M..." required>
+
+            <label for="whatsapp">WhatsApp:</label>
+            <input type="text" id="whatsapp" name="whatsapp" placeholder="Ex: (11) 99999-9999" required>
+
+            <label for="endereco">Endereço:</label>
+            <input type="text" id="endereco" name="endereco" placeholder="Rua, número, bairro, cidade">
+
+            <div class="flex-duo">
+                <div><label for="marca">Marca (Opcional):</label><input type="text" id="marca" name="marca" placeholder="Intelbras, Hikvision..."></div>
+                <div><label for="modelo">Modelo (Opcional):</label><input type="text" id="modelo" name="modelo" placeholder="DVR, Câmera..."></div>
+            </div>
+
+            <label for="descricao">Descrição Detalhada do Problema:</label>
+            <textarea id="descricao" name="descricao" placeholder="Descreva o problema..." required></textarea>
+
+            <label for="fotos">Anexar Fotos (opcional):</label>
+            <input type="file" id="fotos" name="fotos" multiple accept="image/*">
+            <div class="info-ajuda">📸 Tire fotos do equipamento para ajudar no diagnóstico</div>
+
+            <button type="submit" class="btn-enviar">Criar Ordem de Serviço</button>
+        </form>
+    </div>
+
+    <script>
+        const t=document.getElementById('theme-toggle'),c=localStorage.getItem('theme');
+        if(c==='dark'){document.documentElement.setAttribute('data-theme','dark');t.textContent='☀️ Modo Claro';}
+        t.addEventListener('click',()=>{
+            if(document.documentElement.getAttribute('data-theme')!=='dark'){
+                document.documentElement.setAttribute('data-theme','dark');t.textContent='☀️ Modo Claro';localStorage.setItem('theme','dark');
+            }else{
+                document.documentElement.removeAttribute('data-theme');t.textContent='🌙 Modo Escuro';localStorage.setItem('theme','light');
+            }
+        });
+
+        // Auto-preenchimento de clientes
+        let clientesData = [];
+
+        async function carregarClientes() {
+            try {
+                const resp = await fetch('/clientes/api_lista');
+                clientesData = await resp.json();
+                const select = document.getElementById('perfil_cliente');
+                while (select.options.length > 1) select.remove(1);
+                clientesData.forEach(cli => {
+                    const opt = document.createElement('option');
+                    opt.value = cli.id;
+                    opt.textContent = cli.nome_empresa + (cli.nome_gestor ? ' — ' + cli.nome_gestor : '');
+                    select.appendChild(opt);
+                });
+            } catch(e) {
+                console.error('Erro ao carregar clientes:', e);
+            }
+        }
+
+        function preencherCliente(select) {
+            const id = parseInt(select.value);
+            if (!id) {
+                document.getElementById('cliente').value = '';
+                document.getElementById('empresa').value = '';
+                document.getElementById('whatsapp').value = '';
+                document.getElementById('endereco').value = '';
+                return;
+            }
+            const cli = clientesData.find(c => c.id === id);
+            if (cli) {
+                document.getElementById('cliente').value = cli.nome_gestor || '';
+                document.getElementById('empresa').value = cli.nome_empresa || '';
+                document.getElementById('whatsapp').value = cli.whatsapp || '';
+                document.getElementById('endereco').value = cli.endereco || '';
+            }
+        }
+
+        carregarClientes();
+    </script>
+</body>
+</html>]]>

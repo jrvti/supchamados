@@ -186,6 +186,13 @@ def index():
     return render_template('cliente.html')
 
 
+@app.route('/chamado_tecnico')
+def chamado_tecnico():
+    if not session.get('logado'):
+        return redirect(url_for('login'))
+    return render_template('chamado_tecnico.html')
+
+
 @app.route('/enviar_chamado', methods=['POST'])
 def enviar_chamado():
     cliente = request.form.get('cliente')
@@ -506,9 +513,9 @@ def listar_clientes():
 
 @app.route('/clientes/api_lista')
 def api_lista_clientes():
-    """Retorna JSON com lista de clientes para preenchimento automático no formulário público"""
-    # Endpoint público - retorna apenas dados não sensíveis
-    clientes = api_get("clientes", {"order": "nome_empresa.asc", "select": "id,nome_empresa,nome_gestor,whatsapp"})
+    """Retorna JSON com lista de clientes para preenchimento automático"""
+    # Inclui endereco para o preenchimento completo na página de técnicos e RAT
+    clientes = api_get("clientes", {"order": "nome_empresa.asc", "select": "id,nome_empresa,nome_gestor,whatsapp,endereco,cnpj_cpf"})
     return jsonify(clientes)
 
 

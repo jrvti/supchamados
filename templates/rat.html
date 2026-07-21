@@ -126,6 +126,14 @@
 
         <h3 style="color: var(--texto-principal); margin-top:15px; border-bottom: 2px solid var(--border-secao); padding-bottom:5px; text-transform: uppercase;">Preencher RAT — {{ chamado.codigo_os }}</h3>
 
+        <div style="margin-bottom:15px; padding:12px; background: var(--bg-campo); border: 1px solid var(--border-campo);">
+            <label style="display:block;font-size:11px;font-weight:bold;margin-bottom:4px;color:var(--texto-label);text-transform:uppercase;">📋 Cliente / Contrato (auto-preenchimento RAT):</label>
+            <select id="perfil_cliente_rat" onchange="preencherClienteRAT(this)" style="width:100%;padding:8px;background:var(--bg-campo);border:1px solid var(--border-campo);color:var(--texto-principal);font-size:13px;cursor:pointer;">
+                <option value="">— Selecionar cliente cadastrado —</option>
+            </select>
+            <div style="font-size:10px;color:var(--texto-label);margin-top:4px;">Preenche dados do cliente, endereço, CPF e contato automaticamente</div>
+        </div>
+
         <form id="formularioRAT" onsubmit="event.preventDefault();">
             <div class="secao-titulo">1. Dados do Cliente e Contato</div>
             <div class="grupo-campo"><label>Cliente</label><input type="text" id="val_cliente" value="{{ chamado.cliente }}" oninput="atualizarPreview()"><span class="info-pos" id="pos_cliente"></span></div>
@@ -349,7 +357,49 @@
         });
     }
 
-    window.onload = inicializarInterface;
+    // === AUTO-PREENCHIMENTO RAT ===
+    let clientesRAT = [];
+
+    async function carregarClientesRAT() {
+        try {
+            const resp = await fetch('/clientes/api_lista');
+            clientesRAT = await resp.json();
+            const select = document.getElementById('perfil_cliente_rat');
+            clientesRAT.forEach(cli => {
+                const opt = document.createElement('option');
+                opt.value = cli.id;
+                opt.textContent = cli.nome_empresa + (cli.nome_gestor ? ' — ' + cli.nome_gestor : '');
+                select.appendChild(opt);
+            });
+        } catch(e) {
+            console.error('Erro ao carregar clientes RAT:', e);
+        }
+    }
+
+    function preencherClienteRAT(select) {
+        const id = parseInt(select.value);
+        if (!id) return;
+        const cli = clientesRAT.find(c => c.id === id);
+        if (!cli) return;
+
+        // Preenche campos da RAT com dados do cliente
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) { el.value = val || ''; }
+        };
+
+        setVal('val_cliente', cli.nome_gestor || cli.nome_empresa);
+        setVal('val_endereco', cli.endereco || '');
+        setVal('val_cpf_rg', cli.cnpj_cpf || '');
+        setVal('val_contato1', cli.nome_gestor || '');
+        setVal('val_telefones', cli.whatsapp || '');
+
+        // Atualiza preview
+        if (typeof atualizarPreview === 'function') atualizarPreview();
+    }
+
+    // Carrega clientes depois da interface
+    setTimeout(carregarClientesRAT, 500);
 </script>
 </body>
 </html>

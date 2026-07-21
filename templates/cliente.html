@@ -27,12 +27,6 @@
         <h2>Abertura de Chamado</h2>
         <div class="sub">Suporte de TI e Sistemas de Monitoramento / Segurança</div>
         <form action="/enviar_chamado" method="POST" enctype="multipart/form-data">
-            <label for="perfil_cliente">📋 Cliente / Contrato:</label>
-            <select id="perfil_cliente" name="perfil_cliente" onchange="preencherCliente(this)" style="width:100%;padding:10px;border:2px solid var(--border-cor);background:var(--bg-container);color:var(--texto-principal);font-size:14px;margin-bottom:5px;box-sizing:border-box;">
-                <option value="">— Atendimento Avulso (preencher manualmente) —</option>
-            </select>
-            <div style="font-size:11px;color:var(--texto-secundario);margin-bottom:15px;">Selecione um cliente cadastrado para preencher automaticamente</div>
-
             <label for="cliente">Seu Nome / Solicitante:</label>
             <input type="text" id="cliente" name="cliente" placeholder="Ex: Carlos Silva" required>
             <label for="empresa">Empresa / Condomínio:</label>
@@ -53,7 +47,6 @@
         </form>
     </div>
     <script>
-        // Theme toggle
         const t=document.getElementById('theme-toggle'),c=localStorage.getItem('theme');
         if(c==='dark'){document.documentElement.setAttribute('data-theme','dark');t.textContent='☀️ Claro';}
         t.addEventListener('click',()=>{
@@ -63,48 +56,6 @@
                 document.documentElement.removeAttribute('data-theme');t.textContent='🌙 Escuro';localStorage.setItem('theme','light');
             }
         });
-
-        // Auto-preenchimento de clientes
-        let clientesData = [];
-
-        async function carregarClientes() {
-            try {
-                const resp = await fetch('/clientes/api_lista');
-                clientesData = await resp.json();
-                const select = document.getElementById('perfil_cliente');
-                // Remove options antigas (mantém só a primeira)
-                while (select.options.length > 1) select.remove(1);
-                // Adiciona clientes
-                clientesData.forEach(cli => {
-                    const opt = document.createElement('option');
-                    opt.value = cli.id;
-                    opt.textContent = cli.nome_empresa + (cli.nome_gestor ? ' — ' + cli.nome_gestor : '');
-                    select.appendChild(opt);
-                });
-            } catch(e) {
-                console.error('Erro ao carregar clientes:', e);
-            }
-        }
-
-        function preencherCliente(select) {
-            const id = parseInt(select.value);
-            if (!id) {
-                // Limpa campos
-                document.getElementById('cliente').value = '';
-                document.getElementById('empresa').value = '';
-                document.getElementById('whatsapp').value = '';
-                return;
-            }
-            const cli = clientesData.find(c => c.id === id);
-            if (cli) {
-                document.getElementById('cliente').value = cli.nome_gestor || '';
-                document.getElementById('empresa').value = cli.nome_empresa || '';
-                document.getElementById('whatsapp').value = cli.whatsapp || '';
-            }
-        }
-
-        // Carrega clientes ao abrir a página
-        carregarClientes();
     </script>
 </body>
 </html>
