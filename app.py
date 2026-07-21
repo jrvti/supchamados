@@ -238,8 +238,11 @@ def enviar_chamado():
                 except Exception as e:
                     print(f"Erro upload foto: {e}")
 
-    # Redireciona para admin ao invés de mostrar página de sucesso
-    return redirect(url_for('admin'))
+    # Se for técnico logado, redireciona para admin. Se for cliente público, mostra página de sucesso
+    if session.get('logado'):
+        return redirect(url_for('admin'))
+    else:
+        return render_template('sucesso.html', codigo_os=codigo_gerado)
 
 
 @app.route('/login', methods=['GET', 'POST'])
