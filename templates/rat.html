@@ -220,16 +220,20 @@
     async function carregarPdfModeloAutomatico() {
         const statusBox = document.getElementById('statusSistema');
         try {
+            console.log("Tentando carregar modelo_rat.pdf...");
             const resposta = await fetch('/modelo_base_pdf');
-            if(!resposta.ok) throw new Error("Erro");
+            console.log("Resposta do servidor:", resposta.status, resposta.statusText);
+            if(!resposta.ok) throw new Error(`Servidor retornou ${resposta.status}`);
             const arrayBuffer = await resposta.arrayBuffer();
+            console.log("PDF carregado, tamanho:", arrayBuffer.byteLength, "bytes");
             pdfOriginalBytes = new Uint8Array(arrayBuffer);
             statusBox.style.background = "#22c55e";
             statusBox.innerText = "✔ MODELO BASE PRONTO";
             await atualizarPreview();
         } catch(err) {
+            console.error("Erro ao carregar PDF:", err);
             statusBox.style.background = "#ef4444";
-            statusBox.innerText = "⚠️ FALHA AO CARREGAR O ARQUIVO BASE";
+            statusBox.innerText = "⚠️ FALHA AO CARREGAR ARQUIVO BASE";
         }
     }
 
