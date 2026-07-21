@@ -4,6 +4,7 @@ import string
 import io
 import requests
 from flask import Flask, render_template, request, send_file, redirect, url_for, session, jsonify
+from whatsapp import notificar_novo_chamado_tecnico, notificar_nova_tarefa_agenda, notificar_chamado_finalizado
 
 app = Flask(__name__)
 app.secret_key = 'chave_secreta_jrvti_2026'
@@ -179,6 +180,19 @@ def gerar_codigo_os():
     return f"OS-{''.join(random.choice(caracteres) for _ in range(6))}"
 
 
+# Dicionário de telefones dos técnicos (formato internacional sem +)
+TELEFONES_TECNICOS = {
+    'tecnicon1': '5511999999999',  # N1 - Maciel - SUBSTITUA PELO NÚMERO REAL
+    'tecnicon2': '5511888888888',  # N2 - Adams - SUBSTITUA PELO NÚMERO REAL
+    'tecsenior': '5511777777777'   # N3 - Jaime - SUBSTITUA PELO NÚMERO REAL
+}
+
+
+def obter_telefone_tecnico(usuario_tecnico):
+    """Retorna o telefone do técnico baseado no username"""
+    return TELEFONES_TECNICOS.get(usuario_tecnico, '')
+
+
 # ==================== ROTAS ====================
 
 @app.route('/')
@@ -238,6 +252,14 @@ def enviar_chamado():
                 except Exception as e:
                     print(f"Erro upload foto: {e}")
 
+    # Notifica técnico se o chamado já foi atribuído
+    if dados_chamado.get('tecnico_responsavel') and dados_chamado['tecnico_responsavel'] != 'Nenhum':
+        telefone_tecnico = obter_telefone_tecnico(dados_chamado['tecnico_responsavel'])
+        if telefone_tecnico:
+            notificar_novo_chamado_tecnico(
+                codigo_gerado, cliente, empresa, categoria, telefone_tecnico
+            )
+
     # Se for técnico logado, redireciona para admin. Se for cliente público, mostra página de sucesso
     if session.get('logado'):
         return redirect(url_for('admin'))
@@ -295,6 +317,18 @@ def admin():
             "tecnico_responsavel": novo_tecnico,
             "urgencia": nova_urgencia
         }, {"id": f"eq.{chamado_id}"})
+        
+        # Notifica técnico se foi atribuído a um chamado
+        if novo_tecnico and novo_tecnico != 'Nenhum' and novo_tecnico != chamado_atual.get('tecnico_responsavel'):
+            telefone_tecnico = obter_telefone_tecnico(novo_tecnico)
+            if telefone_tecnico:
+                notificar_novo_chamado_tecnico(
+                    chamado_atual.get('codigo_os', ''),
+                    chamado_atual.get('cliente', ''),
+                    chamado_atual.get('empresa', ''),
+                    chamado_atual.get('categoria', 'Outros'),
+                    telefone_tecnico
+                )
 
     busca = request.args.get('busca', '')
     params = {"status": "neq.Finalizado", "order": "id.desc"}
@@ -688,6 +722,22 @@ def salvar_evento():
     else:
         api_post("agenda", dados_evento)
         registrar_log("agenda_criar", f"Evento '{dados_evento['titulo']}' criado em {dados_evento['data_agenda']}")
+        
+        # Notifica técnico sobre nova tarefa na agenda
+        if dados_evento.get('tecnico'):
+            telefone_tecnico = obter_telefone_tecnico(dados_evento['tecnico'])
+            if telefone_tecnico:
+                codigo_chamado = None
+                if dados_evento.get('chamado_id'):
+                    chamado_info = api_get("chamados", {"id": f"eq.{dados_evento['chamado_id']}", "limit": "1", "select": "codigo_os"})
+                    if chamado_info:
+                        codigo_chamado = chamado_info[0].get('codigo_os')
+                notificar_nova_tarefa_agenda(
+                    dados_evento['data_agenda'],
+                    dados_evento['titulo'],
+                    telefone_tecnico,
+                    codigo_chamado
+                )
     
     return jsonify({"sucesso": True}), 200
 
