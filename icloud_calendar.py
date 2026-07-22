@@ -117,7 +117,9 @@ def criar_evento_da_agenda(dados_evento, chamado_info=None):
     """
     Cria evento no iCloud a partir dos dados da agenda do sistema
     """
+    print(f"🔍 iCloud: Tentando criar evento - {dados_evento.get('titulo')}")
     if not iCloud_disponivel():
+        print("❌ iCloud: Não disponível (credenciais não configuradas)")
         return False
 
     titulo = dados_evento.get('titulo', 'Tarefa JRV-TI')
