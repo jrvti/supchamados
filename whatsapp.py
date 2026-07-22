@@ -26,7 +26,8 @@ def enviar_whatsapp(numero_telefone, mensagem):
         }
         payload = {
             "number": numero_telefone,
-            "text": mensagem
+            "text": mensagem,
+            "delay": 0
         }
         
         resp = requests.post(url, headers=headers, json=payload, timeout=10)
