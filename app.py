@@ -11,6 +11,7 @@ from whatsapp import (
     notificar_chamado_finalizado,
     obter_nome_tecnico
 )
+from icloud_calendar import criar_evento_da_agenda
 
 app = Flask(__name__)
 app.secret_key = 'chave_secreta_jrvti_2026'
@@ -746,11 +747,13 @@ def salvar_evento():
             if telefone_tecnico:
                 codigo_chamado = None
                 chamado_cliente = None
+                chamado_endereco = None
                 if dados_evento.get('chamado_id'):
-                    chamado_info = api_get("chamados", {"id": f"eq.{dados_evento['chamado_id']}", "limit": "1", "select": "codigo_os,cliente"})
+                    chamado_info = api_get("chamados", {"id": f"eq.{dados_evento['chamado_id']}", "limit": "1", "select": "codigo_os,cliente,endereco"})
                     if chamado_info:
                         codigo_chamado = chamado_info[0].get('codigo_os')
                         chamado_cliente = chamado_info[0].get('cliente', '')
+                        chamado_endereco = chamado_info[0].get('endereco', '')
                 notificar_nova_tarefa_agenda(
                     dados_evento['data_agenda'],
                     dados_evento['titulo'],
@@ -760,6 +763,15 @@ def salvar_evento():
                     dados_evento.get('tecnico'),
                     dados_evento.get('descricao', '')
                 )
+        
+        # Cria evento no iCloud Calendar
+        chamado_info_icloud = None
+        if dados_evento.get('chamado_id'):
+            chamado_info_icloud = api_get("chamados", {"id": f"eq.{dados_evento['chamado_id']}", "limit": "1", "select": "codigo_os,cliente,endereco,descricao"})
+            if chamado_info_icloud:
+                chamado_info_icloud = chamado_info_icloud[0]
+        
+        criar_evento_da_agenda(dados_evento, chamado_info_icloud)
     
     return jsonify({"sucesso": True}), 200
 
