@@ -98,14 +98,16 @@
                     <th>Categoria</th>
                     <th>Descrição Curta</th>
                     <th>Urgência</th>
+                    <th>SLA</th>
                     <th>Status</th>
                     <th>Técnico</th>
                     <th>Ações</th>
                 </tr>
             </thead>
-            <tbody>
+    {% set sla_horas = {'Crítica': 2, 'Alta': 4, 'Média': 24, 'Baixa': 48} %}
+    <tbody>
                 {% if not chamados %}
-                <tr><td colspan="8" style="text-align:center;padding:25px;color:var(--texto-secundario);">Nenhum chamado ativo encontrado.</td></tr>
+                <tr><td colspan="10" style="text-align:center;padding:25px;color:var(--texto-secundario);">Nenhum chamado ativo encontrado.</td></tr>
                 {% endif %}
                 {% for chamado in chamados %}
                 <tr>
@@ -114,8 +116,15 @@
                     <td>{{ chamado.whatsapp }}</td>
                     <td><span style="font-size:12px;">{{ chamado.categoria or 'Outros' }}</span></td>
                     <td>{{ chamado.descricao[:40] }}...</td>
+                    {% set horas_sla = sla_horas.get(chamado.urgencia, 24) %}
+                    {% if chamado.data_abertura %}
+                        {% set data_abertura = chamado.data_abertura[:19] %}
+                    {% else %}
+                        {% set data_abertura = '' %}
+                    {% endif %}
                     {% if chamado.tecnico_responsavel == 'Nenhum' %}
                     <td><span class="badge-aberto">{{ chamado.urgencia|upper }}</span></td>
+                    <td><span class="badge-aberto" data-data="{{ data_abertura }}" data-sla="{{ horas_sla }}" style="font-size:11px;">⏳ CALC...</span></td>
                     <td><span class="badge-aberto">ABERTO</span></td>
                     <td><span class="badge-aberto">AGUARDANDO</span></td>
                     <td>
@@ -136,6 +145,7 @@
                             <option value="Alta" {% if chamado.urgencia=='Alta' %}selected{% endif %}>ALTA</option>
                             <option value="Crítica" {% if chamado.urgencia=='Crítica' %}selected{% endif %}>CRÍTICA</option>
                         </select></td>
+                        <td><span class="badge-aberto" data-data="{{ data_abertura }}" data-sla="{{ horas_sla }}" style="font-size:11px;">⏳ CALC...</span></td>
                         <td><select name="status" class="select-inline">
                             <option value="Aberto" {% if chamado.status=='Aberto' %}selected{% endif %}>ABERTO</option>
                             <option value="Em Atendimento" {% if chamado.status=='Em Atendimento' %}selected{% endif %}>EM ATENDIMENTO</option>
@@ -161,6 +171,41 @@
         </table>
     </div>
     <script>
+        // Calcula e mostra o SLA
+        function calcularSLAs() {
+            const spans = document.querySelectorAll('[data-data][data-sla]');
+            const agora = new Date();
+            spans.forEach(span => {
+                const dataStr = span.getAttribute('data-data');
+                const slaHoras = parseInt(span.getAttribute('data-sla'));
+                if (!dataStr) { span.textContent = '—'; return; }
+                const dataAbertura = new Date(dataStr.replace(' ', 'T') + '-03:00');
+                const prazo = new Date(dataAbertura.getTime() + slaHoras * 60 * 60 * 1000);
+                const diffMs = prazo - agora;
+                const diffHoras = diffMs / (1000 * 60 * 60);
+                if (diffHoras < 0) {
+                    span.style.background = '#cc0000';
+                    span.style.color = '#ffffff';
+                    span.style.border = 'none';
+                    const passou = Math.abs(diffHoras);
+                    if (passou < 24) span.textContent = `⚠️ ${Math.round(passou)}h atrasado`;
+                    else span.textContent = `⚠️ ${Math.round(passou/24)}d atrasado`;
+                } else if (diffHoras < slaHoras * 0.25) {
+                    span.style.background = '#ff8800';
+                    span.style.color = '#ffffff';
+                    span.style.border = 'none';
+                    span.textContent = `⏳ ${Math.round(diffHoras)}h restam`;
+                } else {
+                    span.style.background = '#22c55e';
+                    span.style.color = '#ffffff';
+                    span.style.border = 'none';
+                    span.textContent = `✅ ${Math.round(diffHoras)}h restam`;
+                }
+            });
+        }
+        calcularSLAs();
+        setInterval(calcularSLAs, 60000); // atualiza a cada minuto
+
         const t=document.getElementById('theme-toggle'),c=localStorage.getItem('theme');
         if(c){document.documentElement.setAttribute('data-theme',c);if(c==='dark')t.textContent='☀️ Modo Claro';}
         t.addEventListener('click',()=>{

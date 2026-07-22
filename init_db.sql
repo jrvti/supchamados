@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS chamados (
     status VARCHAR(50) DEFAULT 'Aberto',
     tecnico_responsavel VARCHAR(50) DEFAULT 'Nenhum',
     categoria VARCHAR(50) DEFAULT 'Outros',
+    endereco VARCHAR(300) DEFAULT '',
     data_abertura TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -218,6 +218,7 @@ def enviar_chamado():
     cliente = request.form.get('cliente')
     empresa = request.form.get('empresa')
     whatsapp = request.form.get('whatsapp')
+    endereco = request.form.get('endereco', '')
     marca = request.form.get('marca', 'Não informado')
     modelo = request.form.get('modelo', 'Não informado')
     categoria = request.form.get('categoria', 'Outros')
@@ -230,6 +231,7 @@ def enviar_chamado():
         "cliente": cliente,
         "empresa": empresa,
         "whatsapp": whatsapp,
+        "endereco": endereco,
         "descricao": descricao_final,
         "marca": marca,
         "modelo": modelo,
