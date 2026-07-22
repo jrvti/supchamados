@@ -44,14 +44,24 @@ def criar_evento_icloud(titulo, data_inicio, descricao="", chamado_os="", tecnic
         # Verifica se precisa de autenticação 2FA
         if api.requires_2fa:
             print("⚠️ iCloud requer autenticação de dois fatores (2FA)")
-            print("   Tentando enviar código de verificação...")
+            print("   Tentando usar dispositivo de confiança...")
             try:
-                api.send_verification_code()
-                print("✅ Código de verificação enviado!")
-                print("   ⚠️ Nota: Em produção, você precisaria digitar o código")
-                print("   Por enquanto, vamos tentar continuar...")
+                # Tenta usar o dispositivo de confiança (se houver)
+                if hasattr(api, 'trusted_devices') and api.trusted_devices:
+                    device = api.trusted_devices[0]
+                    print(f"   Usando dispositivo: {device.get('deviceName', 'Desconhecido')}")
+                    api.send_verification_code(device)
+                    print("✅ Código enviado para dispositivo de confiança!")
+                    # Aguarda um pouco para o código ser enviado
+                    import time
+                    time.sleep(2)
+                else:
+                    print("❌ Nenhum dispositivo de confiança encontrado")
+                    print("   Use uma senha específica para app: https://appleid.apple.com/account/manual")
+                    return False
             except Exception as e:
-                print(f"❌ Erro ao enviar código 2FA: {e}")
+                print(f"❌ Erro no 2FA: {e}")
+                print("   💡 Dica: Use senha específica para app ao invés de senha normal")
                 return False
 
         # Procura o calendário ou cria um novo

@@ -11,7 +11,7 @@ from whatsapp import (
     notificar_chamado_finalizado,
     obter_nome_tecnico
 )
-from icloud_calendar import criar_evento_da_agenda
+from caldav_calendar import criar_evento_da_agenda
 
 app = Flask(__name__)
 app.secret_key = 'chave_secreta_jrvti_2026'
