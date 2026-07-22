@@ -4,9 +4,9 @@ Módulo de integração com WhatsApp via Evolution API
 import requests
 import os
 
-EVOLUTION_API_URL = os.environ.get('EVOLUTION_API_URL', '')
-EVOLUTION_API_KEY = os.environ.get('EVOLUTION_API_KEY', '')
-EVOLUTION_INSTANCE = os.environ.get('EVOLUTION_INSTANCE', 'jrvti-chamados')
+EVOLUTION_API_URL = os.environ.get('EVOLUTION_API_URL', 'https://attention-shininess-radiated.ngrok-free.dev')
+EVOLUTION_API_KEY = os.environ.get('EVOLUTION_API_KEY', 'F6696D693168-4A2A-B814-F0570E881714')
+EVOLUTION_INSTANCE = os.environ.get('EVOLUTION_INSTANCE', 'Baileys')
 
 
 def enviar_whatsapp(numero_telefone, mensagem):

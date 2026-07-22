@@ -182,9 +182,9 @@ def gerar_codigo_os():
 
 # Dicionário de telefones dos técnicos (formato internacional sem +)
 TELEFONES_TECNICOS = {
-    'tecnicon1': '5511999999999',  # N1 - Maciel - SUBSTITUA PELO NÚMERO REAL
-    'tecnicon2': '5511888888888',  # N2 - Adams - SUBSTITUA PELO NÚMERO REAL
-    'tecsenior': '5511777777777'   # N3 - Jaime - SUBSTITUA PELO NÚMERO REAL
+    'tecnicon1': '5511961473785',  # N1 - Maciel
+    'tecnicon2': '5511997799379',  # N2 - Adams
+    'tecsenior': '5511993447737'   # N3 - Jaime
 }
 
 
