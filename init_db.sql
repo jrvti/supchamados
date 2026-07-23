@@ -57,6 +57,8 @@ CREATE TABLE IF NOT EXISTS agenda (
     descricao TEXT DEFAULT '',
     tecnico VARCHAR(50) NOT NULL DEFAULT '',
     cor VARCHAR(20) DEFAULT '#3b82f6',
+    repetir BOOLEAN DEFAULT FALSE,
+    evento_icloud_uid VARCHAR(500) DEFAULT NULL,
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

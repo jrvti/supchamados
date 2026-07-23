@@ -1,4 +1,4 @@
-<![CDATA[<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
@@ -98,6 +98,10 @@
             <input type="color" id="ev_cor" value="#3b82f6">
             <label>Descrição</label>
             <textarea id="ev_descricao" placeholder="Observações..."></textarea>
+            <label style="margin-top:15px;">
+                <input type="checkbox" id="ev_repetir" style="width:auto;margin-right:8px;">
+                🔁 Repetir todo dia (até chamado ser finalizado)
+            </label>
             <div class="modal-acoes">
                 <button class="btn-cancelar" onclick="fecharModal()">Cancelar</button>
                 <button class="btn-excluir-evento" id="btnExcluir" style="display:none;" onclick="excluirEvento()">🗑️ Excluir</button>
@@ -117,8 +121,8 @@
             }
         });
 
-        const mes = {{ mes }};
-        const ano = {{ ano }};
+        const MES = {{ mes }};
+        const ANO = {{ ano }};
         const nomesDias = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
         let eventos = [];
 
@@ -126,7 +130,7 @@
 
         async function carregarEventos() {
             try {
-                const resp = await fetch(`/agenda/api_eventos?mes=${mes}&ano=${ano}`);
+                const resp = await fetch(`/agenda/api_eventos?mes=${MES}&ano=${ANO}`);
                 eventos = await resp.json();
                 renderizarCalendario();
             } catch(e) { console.error('Erro ao carregar eventos:', e); }
@@ -135,8 +139,8 @@
         function renderizarCalendario() {
             const tbody = document.getElementById('corpoCalendario');
             tbody.innerHTML = '';
-            const primeiroDia = new Date(ano, mes-1, 1).getDay();
-            const diasNoMes = getDiasNoMes(mes, ano);
+            const primeiroDia = new Date(ANO, MES-1, 1).getDay();
+            const diasNoMes = getDiasNoMes(MES, ANO);
             const hoje = new Date();
             
             let dia = 1;
@@ -150,8 +154,8 @@
                     } else if (dia > diasNoMes) {
                         td.classList.add('other-month');
                     } else {
-                        const dataStr = `${ano}-${String(mes).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
-                        const isHoje = hoje.getDate() === dia && hoje.getMonth() === mes-1 && hoje.getFullYear() === ano;
+                        const dataStr = `${ANO}-${String(MES).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+                        const isHoje = hoje.getDate() === dia && hoje.getMonth() === MES-1 && hoje.getFullYear() === ANO;
                         if (isHoje) td.classList.add('today');
                         
                         td.innerHTML = `<span class="num-dia">${dia}</span>`;
@@ -211,7 +215,8 @@
                 titulo: document.getElementById('ev_titulo').value,
                 tecnico: document.getElementById('ev_tecnico').value,
                 cor: document.getElementById('ev_cor').value,
-                descricao: document.getElementById('ev_descricao').value
+                descricao: document.getElementById('ev_descricao').value,
+                repetir: document.getElementById('ev_repetir').checked
             };
             if (!dados.data_agenda) { alert('Selecione uma data!'); return; }
             
@@ -240,4 +245,4 @@
         carregarEventos();
     </script>
 </body>
-</html>]]>
+</html>

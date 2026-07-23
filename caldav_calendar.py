@@ -1,3 +1,4 @@
+
 """
 Módulo de integração com iCloud Calendar via CalDAV
 """
@@ -35,7 +36,7 @@ def caldav_disponivel():
     return True
 
 
-def criar_evento_caldav(titulo, data_inicio, descricao="", chamado_os="", tecnico="", endereco="", nome_calendario=None):
+def criar_evento_caldav(titulo, data_inicio, descricao="", chamado_os="", tecnico="", endereco="", nome_calendario=None, repetir=False):
     """
     Cria evento no iCloud Calendar via CalDAV
     Retorna True se sucesso, False caso contrário
@@ -101,13 +102,25 @@ def criar_evento_caldav(titulo, data_inicio, descricao="", chamado_os="", tecnic
         if endereco:
             descricao_final += f"\n📍 Endereço: {endereco}"
         
-        # Cria o evento
-        evento = calendario_destino.add_event(
-            summary=titulo,
-            description=descricao_final,
-            dtstart=data_inicio,
-            dtend=data_fim
-        )
+        # Cria o evento (com ou sem recorrência)
+        if nome_calendario and 'repetir' in locals() and repetir:
+            # Evento recorrente (todo dia)
+            evento = calendario_destino.add_event(
+                summary=titulo,
+                description=descricao_final,
+                dtstart=data_inicio,
+                dtend=data_fim,
+                rrule={'freq': 'daily'}
+            )
+            print(f"✅ Evento recorrente criado (repetição diária)")
+        else:
+            # Evento único
+            evento = calendario_destino.add_event(
+                summary=titulo,
+                description=descricao_final,
+                dtstart=data_inicio,
+                dtend=data_fim
+            )
         
         if evento:
             print(f"✅ Evento '{titulo}' criado no iCloud Calendar!")
@@ -153,6 +166,9 @@ def criar_evento_da_agenda(dados_evento, chamado_info=None):
     # Busca o calendário correto para este técnico
     nome_calendario = CALENDARIOS_POR_TECNICO.get(tecnico, ICLOUD_CALENDAR)
     
+    # Verifica se deve repetir
+    repetir = dados_evento.get('repetir', False)
+    
     return criar_evento_caldav(
         titulo=titulo,
         data_inicio=data,
@@ -160,5 +176,6 @@ def criar_evento_da_agenda(dados_evento, chamado_info=None):
         chamado_os=chamado_os,
         tecnico=nome_tecnico,
         endereco=endereco,
-        nome_calendario=nome_calendario
+        nome_calendario=nome_calendario,
+        repetir=repetir
     )

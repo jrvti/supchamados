@@ -728,7 +728,8 @@ def salvar_evento():
         "titulo": data.get('titulo', '').strip(),
         "descricao": data.get('descricao', '').strip(),
         "tecnico": data.get('tecnico', '').strip(),
-        "cor": data.get('cor', '#3b82f6')
+        "cor": data.get('cor', '#3b82f6'),
+        "repetir": data.get('repetir', False)
     }
     
     if not dados_evento['data_agenda']:
