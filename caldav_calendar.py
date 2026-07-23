@@ -16,6 +16,13 @@ ICLOUD_PASSWORD = os.environ.get('ICLOUD_PASSWORD', '')
 ICLOUD_CALENDAR = os.environ.get('ICLOUD_CALENDAR', 'JRV-TI Chamados')
 CALDAV_URL = os.environ.get('CALDAV_URL', 'https://caldav.icloud.com')
 
+# Mapeamento de técnicos para calendários
+CALENDARIOS_POR_TECNICO = {
+    'tecnicon1': 'Auxiliares JRV',      # Maciel
+    'tecnicon2': 'Técnico Adams',       # Adams
+    'tecsenior': 'Técnico Adams',       # Jaime (mesmo calendário do Adams)
+}
+
 
 def caldav_disponivel():
     """Verifica se a integração com CalDAV está configurada"""
@@ -28,7 +35,7 @@ def caldav_disponivel():
     return True
 
 
-def criar_evento_caldav(titulo, data_inicio, descricao="", chamado_os="", tecnico="", endereco=""):
+def criar_evento_caldav(titulo, data_inicio, descricao="", chamado_os="", tecnico="", endereco="", nome_calendario=None):
     """
     Cria evento no iCloud Calendar via CalDAV
     Retorna True se sucesso, False caso contrário
@@ -50,15 +57,19 @@ def criar_evento_caldav(titulo, data_inicio, descricao="", chamado_os="", tecnic
         principal = client.principal()
         calendars = principal.calendars()
         
+        # Se não especificou calendário, usa o padrão
+        if not nome_calendario:
+            nome_calendario = ICLOUD_CALENDAR
+        
         calendario_destino = None
         for cal in calendars:
-            if ICLOUD_CALENDAR.lower() in cal.name.lower():
+            if nome_calendario.lower() in cal.name.lower():
                 calendario_destino = cal
                 break
         
         # Se não encontrou, usa o primeiro calendário
         if not calendario_destino and calendars:
-            print(f"⚠️ Calendário '{ICLOUD_CALENDAR}' não encontrado. Usando: {calendars[0].name}")
+            print(f"⚠️ Calendário '{nome_calendario}' não encontrado. Usando: {calendars[0].name}")
             calendario_destino = calendars[0]
         
         if not calendario_destino:
@@ -139,11 +150,15 @@ def criar_evento_da_agenda(dados_evento, chamado_info=None):
     }
     nome_tecnico = nomes_tecnicos.get(tecnico, tecnico)
     
+    # Busca o calendário correto para este técnico
+    nome_calendario = CALENDARIOS_POR_TECNICO.get(tecnico, ICLOUD_CALENDAR)
+    
     return criar_evento_caldav(
         titulo=titulo,
         data_inicio=data,
         descricao=descricao,
         chamado_os=chamado_os,
         tecnico=nome_tecnico,
-        endereco=endereco
+        endereco=endereco,
+        nome_calendario=nome_calendario
     )
