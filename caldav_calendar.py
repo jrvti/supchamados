@@ -103,6 +103,11 @@ def criar_evento_caldav(titulo, data_inicio, descricao="", chamado_os="", tecnic
             descricao_final += f"\n📍 Endereço: {endereco}"
         
         # Cria o evento (com ou sem recorrência)
+        # Alarme 1: dispara IMEDIATAMENTE (1 minuto) para notificar no celular
+        alarme_imediato = {'action': 'DISPLAY', 'trigger': timedelta(minutes=1)}
+        # Alarme 2: dispara 15 minutos antes do evento
+        alarme_15min = {'action': 'DISPLAY', 'trigger': data_inicio - timedelta(minutes=15)}
+        
         if nome_calendario and 'repetir' in locals() and repetir:
             # Evento recorrente (todo dia)
             evento = calendario_destino.add_event(
@@ -111,9 +116,9 @@ def criar_evento_caldav(titulo, data_inicio, descricao="", chamado_os="", tecnic
                 dtstart=data_inicio,
                 dtend=data_fim,
                 rrule={'freq': 'daily'},
-                alarm=[{'action': 'DISPLAY', 'trigger': data_inicio - timedelta(minutes=15)}]
+                alarm=[alarme_imediato, alarme_15min]
             )
-            print(f"✅ Evento recorrente criado (repetição diária) com alarme")
+            print(f"✅ Evento recorrente criado (repetição diária) com alarmes")
         else:
             # Evento único
             evento = calendario_destino.add_event(
@@ -121,7 +126,7 @@ def criar_evento_caldav(titulo, data_inicio, descricao="", chamado_os="", tecnic
                 description=descricao_final,
                 dtstart=data_inicio,
                 dtend=data_fim,
-                alarm=[{'action': 'DISPLAY', 'trigger': data_inicio - timedelta(minutes=15)}]
+                alarm=[alarme_imediato, alarme_15min]
             )
         
         if evento:
