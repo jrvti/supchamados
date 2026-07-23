@@ -110,16 +110,18 @@ def criar_evento_caldav(titulo, data_inicio, descricao="", chamado_os="", tecnic
                 description=descricao_final,
                 dtstart=data_inicio,
                 dtend=data_fim,
-                rrule={'freq': 'daily'}
+                rrule={'freq': 'daily'},
+                alarm=[{'action': 'DISPLAY', 'trigger': data_inicio - timedelta(minutes=15)}]
             )
-            print(f"✅ Evento recorrente criado (repetição diária)")
+            print(f"✅ Evento recorrente criado (repetição diária) com alarme")
         else:
             # Evento único
             evento = calendario_destino.add_event(
                 summary=titulo,
                 description=descricao_final,
                 dtstart=data_inicio,
-                dtend=data_fim
+                dtend=data_fim,
+                alarm=[{'action': 'DISPLAY', 'trigger': data_inicio - timedelta(minutes=15)}]
             )
         
         if evento:
