@@ -747,8 +747,10 @@ def salvar_evento():
         registrar_log("agenda_criar", f"Evento '{dados_evento['titulo']}' criado em {dados_evento['data_agenda']}")
         
         # Notifica técnico sobre nova tarefa na agenda
+        print(f"🔔 Verificando notificação para técnico: {dados_evento.get('tecnico')}")
         if dados_evento.get('tecnico'):
             telefone_tecnico = obter_telefone_tecnico(dados_evento['tecnico'])
+            print(f"📱 Telefone do técnico: {telefone_tecnico}")
             if telefone_tecnico:
                 codigo_chamado = None
                 chamado_cliente = None
@@ -759,7 +761,8 @@ def salvar_evento():
                         codigo_chamado = chamado_info[0].get('codigo_os')
                         chamado_cliente = chamado_info[0].get('cliente', '')
                         chamado_endereco = chamado_info[0].get('endereco', '')
-                notificar_nova_tarefa_agenda(
+                print(f"📤 Enviando notificação WhatsApp...")
+                resultado = notificar_nova_tarefa_agenda(
                     dados_evento['data_agenda'],
                     dados_evento['titulo'],
                     telefone_tecnico,
@@ -768,6 +771,9 @@ def salvar_evento():
                     dados_evento.get('tecnico'),
                     dados_evento.get('descricao', '')
                 )
+                print(f"✅ Notificação enviada: {resultado}")
+            else:
+                print("❌ Telefone não encontrado para o técnico")
         
         # Cria evento no iCloud Calendar
         chamado_info_icloud = None
