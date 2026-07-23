@@ -2,6 +2,7 @@ import os
 import random
 import string
 import io
+
 import requests
 from flask import Flask, render_template, request, send_file, redirect, url_for, session, jsonify
 from whatsapp import (
@@ -732,6 +733,8 @@ def salvar_evento():
         "repetir": data.get('repetir', False)
     }
     
+    print(f"📝 Salvando evento: {dados_evento}")
+    
     if not dados_evento['data_agenda']:
         return jsonify({"erro": "Data é obrigatória"}), 400
     
@@ -739,7 +742,8 @@ def salvar_evento():
         api_patch("agenda", dados_evento, {"id": f"eq.{evento_id}"})
         registrar_log("agenda_editar", f"Evento '{dados_evento['titulo']}' editado em {dados_evento['data_agenda']}")
     else:
-        api_post("agenda", dados_evento)
+        resultado = api_post("agenda", dados_evento)
+        print(f"✅ Evento salvo no banco: {resultado}")
         registrar_log("agenda_criar", f"Evento '{dados_evento['titulo']}' criado em {dados_evento['data_agenda']}")
         
         # Notifica técnico sobre nova tarefa na agenda

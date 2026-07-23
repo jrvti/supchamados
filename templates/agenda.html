@@ -132,6 +132,7 @@
             try {
                 const resp = await fetch(`/agenda/api_eventos?mes=${MES}&ano=${ANO}`);
                 eventos = await resp.json();
+                console.log('📋 Eventos carregados:', eventos);
                 renderizarCalendario();
             } catch(e) { console.error('Erro ao carregar eventos:', e); }
         }
