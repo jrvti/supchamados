@@ -880,6 +880,8 @@ def salvar_financeiro():
     if not session.get('logado'):
         return jsonify({"erro": "Não autorizado"}), 401
     
+    from datetime import datetime
+    
     data = request.get_json()
     
     dados = {
