@@ -31,7 +31,12 @@ except ImportError:
 def enviar_lembrete_automatico():
     """Função executada pelo scheduler para enviar lembretes automáticos"""
     try:
-        print(f"⏰ [{datetime.now()}] Verificando lembretes automáticos...")
+        # Usa fuso horário de São Paulo (UTC-3)
+        from zoneinfo import ZoneInfo
+        fuso_sp = ZoneInfo('America/Sao_Paulo')
+        agora_sp = datetime.now(fuso_sp)
+        
+        print(f"⏰ [{agora_sp.strftime('%d/%m/%Y %H:%M:%S')}] Verificando lembretes automáticos...")
         
         # Busca configuração
         config = api_get("config_financeiro", {"id": "eq.1", "limit": "1"})
@@ -45,16 +50,40 @@ def enviar_lembrete_automatico():
             print("ℹ️ Lembretes automáticos desativados")
             return
         
-        # Verifica se já enviou hoje
+        # Verifica se já enviou hoje (em São Paulo)
         ultimo_envio = config.get('ultimo_envio')
         if ultimo_envio:
             try:
+                # Converte último envio para fuso de São Paulo
                 data_ultimo = datetime.fromisoformat(ultimo_envio.replace('Z', '+00:00'))
-                if data_ultimo.date() == datetime.now().date():
-                    print("ℹ️ Já enviado hoje, pulando...")
+                if data_ultimo.tzinfo is None:
+                    data_ultimo = data_ultimo.replace(tzinfo=ZoneInfo('UTC'))
+                data_ultimo_sp = data_ultimo.astimezone(fuso_sp)
+                
+                # Compara datas em São Paulo
+                if data_ultimo_sp.date() == agora_sp.date():
+                    print(f"ℹ️ Já enviado hoje ({data_ultimo_sp.strftime('%d/%m/%Y %H:%M')}), pulando...")
                     return
-            except:
-                pass
+            except Exception as e:
+                print(f"⚠️ Erro ao verificar último envio: {e}")
+        
+        # Verifica se é hora de enviar (em São Paulo)
+        horario_config = config.get('horario_envio', '10:00')
+        try:
+            hora_config, minuto_config = map(int, horario_config.split(':'))
+        except:
+            hora_config, minuto_config = 10, 0
+        
+        # Compara horário atual em SP com horário configurado
+        hora_atual = agora_sp.hour
+        minuto_atual = agora_sp.minute
+        
+        # Só envia se o horário atual for >= horário configurado
+        if hora_atual < hora_config or (hora_atual == hora_config and minuto_atual < minuto_config):
+            print(f"⏳ Ainda não é hora. Atual: {hora_atual:02d}:{minuto_atual:02d}, Configurado: {horario_config}")
+            return
+        
+        print(f"✅ É hora de enviar! Atual: {hora_atual:02d}:{minuto_atual:02d}, Configurado: {horario_config}")
         
         # Monta lista de status para buscar
         status_busca = []
@@ -91,7 +120,10 @@ def enviar_lembrete_automatico():
             if data_criacao:
                 try:
                     data_criacao_dt = datetime.fromisoformat(data_criacao.replace('Z', '+00:00'))
-                    dias_pendentes = (datetime.now() - data_criacao_dt).days
+                    if data_criacao_dt.tzinfo is None:
+                        data_criacao_dt = data_criacao_dt.replace(tzinfo=ZoneInfo('UTC'))
+                    data_criacao_sp = data_criacao_dt.astimezone(fuso_sp)
+                    dias_pendentes = (agora_sp - data_criacao_sp).days
                 except:
                     pass
             
@@ -133,8 +165,8 @@ def enviar_lembrete_automatico():
         
         if resultado:
             print(f"✅ Lembrete automático enviado para {config.get('nome_destino', 'Michele')} - {len(lista_pendentes)} pendências")
-            # Atualiza último envio
-            api_patch("config_financeiro", {"ultimo_envio": datetime.now().isoformat()}, {"id": "eq.1"})
+            # Atualiza último envio (em São Paulo)
+            api_patch("config_financeiro", {"ultimo_envio": agora_sp.isoformat()}, {"id": "eq.1"})
         else:
             print("❌ Falha ao enviar lembrete automático")
     
