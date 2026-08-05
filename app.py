@@ -288,11 +288,28 @@ def login():
     if request.method == 'POST':
         usuario = request.form.get('usuario')
         senha = request.form.get('senha')
+        
+        # Busca usuário no banco de dados
+        usuarios = api_get("usuarios", {"username": f"eq.{usuario}", "limit": "1"})
+        
+        if usuarios and len(usuarios) > 0:
+            user = usuarios[0]
+            # Verifica senha e se usuário está ativo
+            if user.get('senha') == senha and user.get('ativo', True):
+                session['logado'] = True
+                session['usuario'] = usuario
+                session['nivel'] = user.get('nivel', 'tecnico')
+                registrar_log("login", f"Usuário {usuario} logou")
+                return redirect(url_for('admin'))
+        
+        # Fallback para login antigo (compatibilidade)
         if usuario in ['tecsenior', 'tecnicon2', 'tecnicon1'] and senha == 'S@cCham@d##s2005':
             session['logado'] = True
             session['usuario'] = usuario
-            registrar_log("login", f"Usuário {usuario} logou")
+            session['nivel'] = 'admin' if usuario == 'tecsenior' else 'tecnico'
+            registrar_log("login", f"Usuário {usuario} logou (modo legado)")
             return redirect(url_for('admin'))
+        
         return render_template('login.html', erro="Credenciais incorretas.")
     return render_template('login.html', erro=None)
 

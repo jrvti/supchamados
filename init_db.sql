@@ -94,3 +94,10 @@ CREATE TABLE IF NOT EXISTS usuarios (
 );
 
 CREATE INDEX IF NOT EXISTS idx_usuarios_username ON usuarios(username);
+
+-- Inserir usuários iniciais
+INSERT INTO usuarios (username, senha, nome, nivel, ativo) VALUES
+('tecsenior', 'S@cCham@d##s2005', 'N3 - Jaime', 'admin', TRUE),
+('tecnicon2', 'S@cCham@d##s2005', 'N2 - Adams', 'tecnico', TRUE),
+('tecnicon1', 'S@cCham@d##s2005', 'N1 - Maciel', 'tecnico', TRUE)
+ON CONFLICT (username) DO NOTHING;
