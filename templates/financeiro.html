@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Financeiro - JRV-TI</title>
+    <style>
+        :root { --bg-geral: #f9f9f9; --bg-container: #ffffff; --texto-principal: #000000; --texto-secundario: #666666; --border-cor: #000000; }
+        [data-theme="dark"] { --bg-geral: #121212; --bg-container: #1e1e1e; --texto-principal: #ffffff; --texto-secundario: #aaaaaa; --border-cor: #ffffff; }
+        body { font-family:'Segoe UI',Arial,sans-serif; background:var(--bg-geral); color:var(--texto-principal); padding:20px; margin:0; transition:background .2s,color .2s; }
+        .container { max-width:1400px; background:var(--bg-container); padding:25px; margin:auto; border:2px solid var(--border-cor); }
+        .header { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border-cor); padding-bottom:15px; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
+        h2 { color:var(--texto-principal); margin:0; text-transform:uppercase; font-size:20px; }
+        .btn-header { background:var(--bg-container); color:var(--texto-principal); border:2px solid var(--border-cor); padding:6px 12px; text-decoration:none; font-weight:bold; font-size:12px; text-transform:uppercase; cursor:pointer; white-space:nowrap; }
+        .btn-header:hover { background:var(--texto-principal); color:var(--bg-container); }
+
+        .filtros { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+        .filtros select, .filtros input { padding:8px; border:2px solid var(--border-cor); background:var(--bg-container); color:var(--texto-principal); font-size:13px; }
+
+        table { width:100%; border-collapse:collapse; font-size:14px; }
+        th, td { padding:12px; border:1px solid var(--border-cor); text-align:left; vertical-align:middle; }
+        th { background-color:var(--texto-principal); color:var(--bg-container); font-weight:600; text-transform:uppercase; font-size:12px; }
+        tr:nth-child(even) { background-color:rgba(0,0,0,0.03); }
+        [data-theme="dark"] tr:nth-child(even) { background-color:rgba(255,255,255,0.03); }
+
+        .badge { padding:4px 10px; font-size:11px; font-weight:bold; text-transform:uppercase; border:1px solid var(--border-cor); display:inline-block; }
+        .badge-pendente { background:#fff3cd; color:#856404; }
+        .badge-pago { background:#d4edda; color:#155724; }
+        .badge-vencido { background:#f8d7da; color:#721c24; }
+        .badge-desistencia { background:#d1ecf1; color:#0c5460; }
+
+        .acoes { display:flex; gap:5px; flex-wrap:wrap; }
+        .btn-acao { padding:5px 10px; font-size:11px; font-weight:bold; text-transform:uppercase; cursor:pointer; border:1px solid var(--border-cor); text-decoration:none; display:inline-block; }
+        .btn-editar { background:var(--bg-container); color:var(--texto-principal); }
+        .btn-editar:hover { background:var(--texto-principal); color:var(--bg-container); }
+        .btn-rat { background:#3b82f6; color:#fff; }
+        .btn-rat:hover { background:#2563eb; }
+
+        .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:99999; justify-content:center; align-items:center; }
+        .modal-overlay.active { display:flex; }
+        .modal-box { background:var(--bg-container); border:2px solid var(--border-cor); padding:25px; max-width:500px; width:90%; max-height:80vh; overflow-y:auto; }
+        .modal-box h3 { margin-top:0; text-transform:uppercase; border-bottom:2px solid var(--border-cor); padding-bottom:10px; }
+        label { display:block; font-size:12px; font-weight:bold; text-transform:uppercase; margin-top:10px; color:var(--texto-secundario); }
+        input, select, textarea { width:100%; padding:8px; border:2px solid var(--border-cor); background:var(--bg-container); color:var(--texto-principal); font-size:13px; margin-top:3px; box-sizing:border-box; }
+        textarea { resize:vertical; height:60px; }
+        .modal-acoes { display:flex; gap:8px; margin-top:15px; }
+        .btn-salvar { flex:1; background:var(--texto-principal); color:var(--bg-container); border:none; padding:10px; font-weight:bold; text-transform:uppercase; cursor:pointer; border:2px solid var(--border-cor); }
+        .btn-cancelar { background:var(--bg-container); color:var(--texto-principal); border:2px solid var(--border-cor); padding:10px; font-weight:bold; cursor:pointer; }
+
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px; margin-bottom:20px; }
+        .stat-card { background:var(--bg-container); border:2px solid var(--border-cor); padding:15px; text-align:center; }
+        .stat-valor { font-size:24px; font-weight:bold; color:var(--texto-principal); }
+        .stat-label { font-size:12px; text-transform:uppercase; color:var(--texto-secundario); margin-top:5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>💰 Financeiro</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button id="theme-toggle" class="btn-header">🌙 Modo Escuro</button>
+                <a href="/admin" class="btn-header">← Painel</a>
+            </div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-valor" id="total-pendente">R$ 0,00</div>
+                <div class="stat-label">Pendente</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-valor" id="total-pago">R$ 0,00</div>
+                <div class="stat-label">Pago</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-valor" id="total-vencido">R$ 0,00</div>
+                <div class="stat-label">Vencido</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-valor" id="total-geral">R$ 0,00</div>
+                <div class="stat-label">Total Geral</div>
+            </div>
+        </div>
+
+        <div class="filtros">
+            <select id="filtro-status" onchange="carregarFinanceiro()">
+                <option value="">Todos os status</option>
+                <option value="Pendente">Pendente</option>
+                <option value="Pago">Pago</option>
+                <option value="Vencido">Vencido</option>
+                <option value="Desistência">Desistência</option>
+            </select>
+            <input type="text" id="filtro-busca" placeholder="Buscar por OS, cliente..." onkeyup="carregarFinanceiro()">
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>O.S.</th>
+                    <th>Cliente</th>
+                    <th>Empresa</th>
+                    <th>Valor</th>
+                    <th>Status</th>
+                    <th>Data Criação</th>
+                    <th>Data Pagamento</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="corpoFinanceiro"></tbody>
+        </table>
+    </div>
+
+    <!-- MODAL -->
+    <div class="modal-overlay" id="modalFinanceiro">
+        <div class="modal-box">
+            <h3 id="modalTitulo">Editar Financeiro</h3>
+            <input type="hidden" id="fin_id">
+            <input type="hidden" id="fin_chamado_id">
+            <label>Valor (R$)</label>
+            <input type="number" id="fin_valor" step="0.01" placeholder="0,00">
+            <label>Status de Pagamento</label>
+            <select id="fin_status">
+                <option value="Pendente">Pendente</option>
+                <option value="Pago">Pago</option>
+                <option value="Vencido">Vencido</option>
+                <option value="Desistência">Desistência</option>
+            </select>
+            <label>Observações</label>
+            <textarea id="fin_observacoes" placeholder="Observações..."></textarea>
+            <div class="modal-acoes">
+                <button class="btn-cancelar" onclick="fecharModal()">Cancelar</button>
+                <button class="btn-salvar" onclick="salvarFinanceiro()">💾 Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const t=document.getElementById('theme-toggle'),c=localStorage.getItem('theme');
+        if(c==='dark'){document.documentElement.setAttribute('data-theme','dark');t.textContent='☀️ Modo Claro';}
+        t.addEventListener('click',()=>{
+            if(document.documentElement.getAttribute('data-theme')!=='dark'){
+                document.documentElement.setAttribute('data-theme','dark');t.textContent='☀️ Modo Claro';localStorage.setItem('theme','dark');
+            }else{
+                document.documentElement.removeAttribute('data-theme');t.textContent='🌙 Modo Escuro';localStorage.setItem('theme','light');
+            }
+        });
+
+        async function carregarFinanceiro() {
+            const status = document.getElementById('filtro-status').value;
+            const busca = document.getElementById('filtro-busca').value;
+            
+            let url = '/financeiro/api_lista';
+            if (status) url += `?status=${status}`;
+            if (busca) url += `${status ? '&' : '?'}busca=${encodeURIComponent(busca)}`;
+
+            try {
+                const resp = await fetch(url);
+                const dados = await resp.json();
+                renderizarTabela(dados);
+                atualizarStats(dados);
+            } catch(e) { console.error('Erro ao carregar financeiro:', e); }
+        }
+
+        function renderizarTabela(dados) {
+            const tbody = document.getElementById('corpoFinanceiro');
+            tbody.innerHTML = '';
+
+            if (!dados || dados.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:25px;">Nenhum registro encontrado</td></tr>';
+                return;
+            }
+
+            dados.forEach(item => {
+                const tr = document.createElement('tr');
+                const badgeClass = item.status_pagamento === 'Pago' ? 'badge-pago' : 
+                                  item.status_pagamento === 'Vencido' ? 'badge-vencido' : 
+                                  item.status_pagamento === 'Desistência' ? 'badge-desistencia' : 'badge-pendente';
+                
+                tr.innerHTML = `
+                    <td><strong>${item.codigo_os || ''}</strong></td>
+                    <td>${item.cliente || ''}</td>
+                    <td>${item.empresa || ''}</td>
+                    <td><strong>R$ ${parseFloat(item.valor || 0).toFixed(2)}</strong></td>
+                    <td><span class="badge ${badgeClass}">${item.status_pagamento || 'Pendente'}</span></td>
+                    <td>${item.data_criacao ? new Date(item.data_criacao).toLocaleDateString('pt-BR') : ''}</td>
+                    <td>${item.data_pagamento ? new Date(item.data_pagamento).toLocaleDateString('pt-BR') : '-'}</td>
+                    <td>
+                        <div class="acoes">
+                            <button class="btn-acao btn-editar" onclick="abrirModal(${item.id}, ${item.chamado_id}, '${item.valor || 0}', '${item.status_pagamento || 'Pendente'}', '${(item.observacoes || '').replace(/'/g, "\\'")}')">✏️ Editar</button>
+                            ${item.status_pagamento !== 'Pago' ? `<a href="/chamado/${item.chamado_id}/rat" class="btn-acao btn-rat" target="_blank">📄 RAT</a>` : ''}
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function atualizarStats(dados) {
+            let pendente = 0, pago = 0, vencido = 0, total = 0;
+            dados.forEach(item => {
+                const valor = parseFloat(item.valor || 0);
+                total += valor;
+                if (item.status_pagamento === 'Pago') pago += valor;
+                else if (item.status_pagamento === 'Vencido') vencido += valor;
+                else pendente += valor;
+            });
+            document.getElementById('total-pendente').textContent = `R$ ${pendente.toFixed(2)}`;
+            document.getElementById('total-pago').textContent = `R$ ${pago.toFixed(2)}`;
+            document.getElementById('total-vencido').textContent = `R$ ${vencido.toFixed(2)}`;
+            document.getElementById('total-geral').textContent = `R$ ${total.toFixed(2)}`;
+        }
+
+        function abrirModal(id, chamado_id, valor, status, observacoes) {
+            document.getElementById('modalTitulo').textContent = 'Editar Financeiro';
+            document.getElementById('fin_id').value = id;
+            document.getElementById('fin_chamado_id').value = chamado_id;
+            document.getElementById('fin_valor').value = valor;
+            document.getElementById('fin_status').value = status;
+            document.getElementById('fin_observacoes').value = observacoes;
+            document.getElementById('modalFinanceiro').classList.add('active');
+        }
+
+        function fecharModal() { document.getElementById('modalFinanceiro').classList.remove('active'); }
+
+        async function salvarFinanceiro() {
+            const dados = {
+                id: document.getElementById('fin_id').value,
+                chamado_id: document.getElementById('fin_chamado_id').value,
+                valor: parseFloat(document.getElementById('fin_valor').value) || 0,
+                status_pagamento: document.getElementById('fin_status').value,
+                observacoes: document.getElementById('fin_observacoes').value
+            };
+
+            try {
+                const resp = await fetch('/financeiro/salvar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(dados)
+                });
+                if (resp.ok) { fecharModal(); carregarFinanceiro(); }
+                else alert('Erro ao salvar');
+            } catch(e) { alert('Erro ao salvar'); }
+        }
+
+        // Carrega dados ao iniciar
+        carregarFinanceiro();
+    </script>
+</body>
+</html>

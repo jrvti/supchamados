@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gerenciar Usuários - JRV-TI</title>
+    <style>
+        :root { --bg-geral: #f9f9f9; --bg-container: #ffffff; --texto-principal: #000000; --texto-secundario: #666666; --border-cor: #000000; }
+        [data-theme="dark"] { --bg-geral: #121212; --bg-container: #1e1e1e; --texto-principal: #ffffff; --texto-secundario: #aaaaaa; --border-cor: #ffffff; }
+        body { font-family:'Segoe UI',Arial,sans-serif; background:var(--bg-geral); color:var(--texto-principal); padding:20px; margin:0; transition:background .2s,color .2s; }
+        .container { max-width:1200px; background:var(--bg-container); padding:25px; margin:auto; border:2px solid var(--border-cor); }
+        .header { display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--border-cor); padding-bottom:15px; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
+        h2 { color:var(--texto-principal); margin:0; text-transform:uppercase; font-size:20px; }
+        .btn-header { background:var(--bg-container); color:var(--texto-principal); border:2px solid var(--border-cor); padding:6px 12px; text-decoration:none; font-weight:bold; font-size:12px; text-transform:uppercase; cursor:pointer; white-space:nowrap; }
+        .btn-header:hover { background:var(--texto-principal); color:var(--bg-container); }
+        .btn-novo { background:#22c55e; color:#fff; border:2px solid var(--border-cor); padding:8px 16px; font-weight:bold; cursor:pointer; text-transform:uppercase; }
+        .btn-novo:hover { background:#16a34a; }
+
+        table { width:100%; border-collapse:collapse; font-size:14px; }
+        th, td { padding:12px; border:1px solid var(--border-cor); text-align:left; vertical-align:middle; }
+        th { background-color:var(--texto-principal); color:var(--bg-container); font-weight:600; text-transform:uppercase; font-size:12px; }
+        tr:nth-child(even) { background-color:rgba(0,0,0,0.03); }
+        [data-theme="dark"] tr:nth-child(even) { background-color:rgba(255,255,255,0.03); }
+
+        .badge { padding:4px 10px; font-size:11px; font-weight:bold; text-transform:uppercase; border:1px solid var(--border-cor); display:inline-block; }
+        .badge-admin { background:#d4edda; color:#155724; }
+        .badge-tecnico { background:#fff3cd; color:#856404; }
+        .badge-ativo { background:#d4edda; color:#155724; }
+        .badge-inativo { background:#f8d7da; color:#721c24; }
+
+        .acoes { display:flex; gap:5px; }
+        .btn-acao { padding:5px 10px; font-size:11px; font-weight:bold; text-transform:uppercase; cursor:pointer; border:1px solid var(--border-cor); }
+        .btn-editar { background:var(--bg-container); color:var(--texto-principal); }
+        .btn-editar:hover { background:var(--texto-principal); color:var(--bg-container); }
+        .btn-excluir { background:var(--bg-container); color:#cc0000; border-color:#cc0000; }
+        .btn-excluir:hover { background:#cc0000; color:#fff; }
+
+        .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:99999; justify-content:center; align-items:center; }
+        .modal-overlay.active { display:flex; }
+        .modal-box { background:var(--bg-container); border:2px solid var(--border-cor); padding:25px; max-width:500px; width:90%; max-height:80vh; overflow-y:auto; }
+        .modal-box h3 { margin-top:0; text-transform:uppercase; border-bottom:2px solid var(--border-cor); padding-bottom:10px; }
+        label { display:block; font-size:12px; font-weight:bold; text-transform:uppercase; margin-top:10px; color:var(--texto-secundario); }
+        input, select { width:100%; padding:8px; border:2px solid var(--border-cor); background:var(--bg-container); color:var(--texto-principal); font-size:13px; margin-top:3px; box-sizing:border-box; }
+        .modal-acoes { display:flex; gap:8px; margin-top:15px; }
+        .btn-salvar { flex:1; background:var(--texto-principal); color:var(--bg-container); border:none; padding:10px; font-weight:bold; text-transform:uppercase; cursor:pointer; border:2px solid var(--border-cor); }
+        .btn-cancelar { background:var(--bg-container); color:var(--texto-principal); border:2px solid var(--border-cor); padding:10px; font-weight:bold; cursor:pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>👥 Gerenciar Usuários</h2>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button id="theme-toggle" class="btn-header">🌙 Modo Escuro</button>
+                <button class="btn-novo" onclick="abrirModal()">➕ Novo Usuário</button>
+                <a href="/admin" class="btn-header">← Painel</a>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Nome</th>
+                    <th>Nível</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="corpoUsuarios"></tbody>
+        </table>
+    </div>
+
+    <!-- MODAL -->
+    <div class="modal-overlay" id="modalUsuario">
+        <div class="modal-box">
+            <h3 id="modalTitulo">Novo Usuário</h3>
+            <input type="hidden" id="usr_id">
+            <label>Username</label>
+            <input type="text" id="usr_username" placeholder="username">
+            <label>Nome Completo</label>
+            <input type="text" id="usr_nome" placeholder="Nome do usuário">
+            <label>Senha</label>
+            <input type="password" id="usr_senha" placeholder="Senha">
+            <label>Nível</label>
+            <select id="usr_nivel">
+                <option value="tecnico">Técnico</option>
+                <option value="admin">Administrador</option>
+            </select>
+            <label>Status</label>
+            <select id="usr_ativo">
+                <option value="true">Ativo</option>
+                <option value="false">Inativo</option>
+            </select>
+            <div class="modal-acoes">
+                <button class="btn-cancelar" onclick="fecharModal()">Cancelar</button>
+                <button class="btn-salvar" onclick="salvarUsuario()">💾 Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const t=document.getElementById('theme-toggle'),c=localStorage.getItem('theme');
+        if(c==='dark'){document.documentElement.setAttribute('data-theme','dark');t.textContent='☀️ Modo Claro';}
+        t.addEventListener('click',()=>{
+            if(document.documentElement.getAttribute('data-theme')!=='dark'){
+                document.documentElement.setAttribute('data-theme','dark');t.textContent='☀️ Modo Claro';localStorage.setItem('theme','dark');
+            }else{
+                document.documentElement.removeAttribute('data-theme');t.textContent='🌙 Modo Escuro';localStorage.setItem('theme','light');
+            }
+        });
+
+        async function carregarUsuarios() {
+            try {
+                const resp = await fetch('/usuarios/api_lista');
+                const usuarios = await resp.json();
+                renderizarTabela(usuarios);
+            } catch(e) { console.error('Erro ao carregar usuários:', e); }
+        }
+
+        function renderizarTabela(usuarios) {
+            const tbody = document.getElementById('corpoUsuarios');
+            tbody.innerHTML = '';
+
+            if (!usuarios || usuarios.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:25px;">Nenhum usuário encontrado</td></tr>';
+                return;
+            }
+
+            usuarios.forEach(usr => {
+                const tr = document.createElement('tr');
+                const badgeNivel = usr.nivel === 'admin' ? 'badge-admin' : 'badge-tecnico';
+                const badgeStatus = usr.ativo ? 'badge-ativo' : 'badge-inativo';
+                
+                tr.innerHTML = `
+                    <td><strong>${usr.username}</strong></td>
+                    <td>${usr.nome}</td>
+                    <td><span class="badge ${badgeNivel}">${usr.nivel.toUpperCase()}</span></td>
+                    <td><span class="badge ${badgeStatus}">${usr.ativo ? 'ATIVO' : 'INATIVO'}</span></td>
+                    <td>
+                        <div class="acoes">
+                            <button class="btn-acao btn-editar" onclick="editarUsuario(${usr.id}, '${usr.username}', '${usr.nome}', '${usr.nivel}', ${usr.ativo})">✏️ Editar</button>
+                            <button class="btn-acao btn-excluir" onclick="excluirUsuario(${usr.id}, '${usr.username}')">🗑️ Excluir</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function abrirModal() {
+            document.getElementById('modalTitulo').textContent = 'Novo Usuário';
+            document.getElementById('usr_id').value = '';
+            document.getElementById('usr_username').value = '';
+            document.getElementById('usr_nome').value = '';
+            document.getElementById('usr_senha').value = '';
+            document.getElementById('usr_nivel').value = 'tecnico';
+            document.getElementById('usr_ativo').value = 'true';
+            document.getElementById('modalUsuario').classList.add('active');
+        }
+
+        function editarUsuario(id, username, nome, nivel, ativo) {
+            document.getElementById('modalTitulo').textContent = 'Editar Usuário';
+            document.getElementById('usr_id').value = id;
+            document.getElementById('usr_username').value = username;
+            document.getElementById('usr_nome').value = nome;
+            document.getElementById('usr_senha').value = '';
+            document.getElementById('usr_nivel').value = nivel;
+            document.getElementById('usr_ativo').value = ativo ? 'true' : 'false';
+            document.getElementById('modalUsuario').classList.add('active');
+        }
+
+        function fecharModal() { document.getElementById('modalUsuario').classList.remove('active'); }
+
+        async function salvarUsuario() {
+            const dados = {
+                id: document.getElementById('usr_id').value || null,
+                username: document.getElementById('usr_username').value,
+                nome: document.getElementById('usr_nome').value,
+                senha: document.getElementById('usr_senha').value,
+                nivel: document.getElementById('usr_nivel').value,
+                ativo: document.getElementById('usr_ativo').value === 'true'
+            };
+
+            if (!dados.username || !dados.nome) {
+                alert('Username e nome são obrigatórios');
+                return;
+            }
+
+            if (!dados.id && !dados.senha) {
+                alert('Senha é obrigatória para novo usuário');
+                return;
+            }
+
+            try {
+                const resp = await fetch('/usuarios/salvar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(dados)
+                });
+                if (resp.ok) { fecharModal(); carregarUsuarios(); }
+                else alert('Erro ao salvar usuário');
+            } catch(e) { alert('Erro ao salvar usuário'); }
+        }
+
+        async function excluirUsuario(id, username) {
+            if (!confirm(`Excluir usuário "${username}"?`)) return;
+            try {
+                const resp = await fetch(`/usuarios/${id}/excluir`, { method: 'POST' });
+                if (resp.ok) carregarUsuarios();
+                else alert('Erro ao excluir usuário');
+            } catch(e) { alert('Erro ao excluir usuário'); }
+        }
+
+        // Carrega usuários ao iniciar
+        carregarUsuarios();
+    </script>
+</body>
+</html>

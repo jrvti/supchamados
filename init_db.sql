@@ -65,3 +65,32 @@ CREATE TABLE IF NOT EXISTS agenda (
 CREATE INDEX IF NOT EXISTS idx_agenda_data ON agenda(data_agenda);
 CREATE INDEX IF NOT EXISTS idx_agenda_tecnico ON agenda(tecnico);
 CREATE INDEX IF NOT EXISTS idx_agenda_chamado ON agenda(chamado_id);
+
+-- Tabela de financeiro
+CREATE TABLE IF NOT EXISTS financeiro (
+    id SERIAL PRIMARY KEY,
+    chamado_id INTEGER NOT NULL REFERENCES chamados(id) ON DELETE CASCADE,
+    valor DECIMAL(10,2) DEFAULT 0,
+    status_pagamento VARCHAR(50) DEFAULT 'Pendente',
+    observacoes TEXT DEFAULT '',
+    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    data_pagamento TIMESTAMP DEFAULT NULL,
+    usuario_criacao VARCHAR(50) DEFAULT 'sistema',
+    usuario_pagamento VARCHAR(50) DEFAULT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_financeiro_chamado ON financeiro(chamado_id);
+CREATE INDEX IF NOT EXISTS idx_financeiro_status ON financeiro(status_pagamento);
+
+-- Tabela de usuários do sistema
+CREATE TABLE IF NOT EXISTS usuarios (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    senha VARCHAR(255) NOT NULL,
+    nome VARCHAR(200) NOT NULL,
+    nivel VARCHAR(50) DEFAULT 'tecnico',
+    ativo BOOLEAN DEFAULT TRUE,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_usuarios_username ON usuarios(username);

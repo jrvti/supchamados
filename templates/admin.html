@@ -75,7 +75,8 @@
                 <a href="/dashboard" class="btn-dashboard">📊 Dashboard</a>
                 <a href="/clientes" class="btn-dashboard">👥 Clientes</a>
                 <a href="/arquivados" class="btn-arquivados">📁 Fechados</a>
-                <a href="/logs" class="btn-arquivados">📋 Logs</a>
+                <a href="/financeiro" class="btn-arquivados">💰 Financeiro</a>
+                <a href="/usuarios" class="btn-arquivados">� Usuários</a>
                 <div class="user-block">
                     <span class="user-badge">{% if tecnico_atual == 'tecnicon1' %}N1 - Maciel{% elif tecnico_atual == 'tecnicon2' %}N2 - Adams{% elif tecnico_atual == 'tecsenior' %}N3 - Jaime{% else %}{{ tecnico_atual }}{% endif %}</span>
                     <a href="/logout" class="btn-logout">Sair</a>
@@ -157,9 +158,10 @@
                             <option value="tecsenior" {% if chamado.tecnico_responsavel=='tecsenior' %}selected{% endif %}>N3 - Jaime</option>
                         </select></td>
                         <td>
-                            <div style="display:flex;gap:5px;align-items:center;">
+                            <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;">
                                 <button type="submit" class="btn-salvar-mudanca">Salvar</button>
                                 <a href="/chamado/{{ chamado.id }}/rat" class="btn-atender" style="padding:5px 10px;font-size:11px;">RAT</a>
+                                <a href="/financeiro?chamado_id={{ chamado.id }}" class="btn-atender" style="padding:5px 10px;font-size:11px;background:#3b82f6;">💰 Financeiro</a>
                                 <button type="button" class="btn-excluir" onclick="if(confirm('Tem certeza absoluta que deseja excluir permanentemente este chamado ativo?')){this.form.action='/chamado/{{ chamado.id }}/excluir';this.form.submit();}">❌ Excluir</button>
                             </div>
                         </td>

@@ -801,6 +801,164 @@ def excluir_evento(id):
     return jsonify({"sucesso": True}), 200
 
 
+# ==================== ROTAS DE FINANCEIRO ====================
+
+@app.route('/financeiro')
+def pagina_financeiro():
+    """Página de financeiro"""
+    if not session.get('logado'):
+        return redirect(url_for('login'))
+    return render_template('financeiro.html')
+
+
+@app.route('/financeiro/api_lista')
+def api_lista_financeiro():
+    """API que retorna lista de financeiro"""
+    if not session.get('logado'):
+        return jsonify([])
+    
+    status = request.args.get('status', '')
+    busca = request.args.get('busca', '')
+    
+    # JOIN com chamados para pegar dados do cliente
+    query = """
+        SELECT f.*, c.codigo_os, c.cliente, c.empresa 
+        FROM financeiro f 
+        JOIN chamados c ON f.chamado_id = c.id 
+        WHERE 1=1
+    """
+    params = {}
+    
+    if status:
+        query += " AND f.status_pagamento = :status"
+        params['status'] = status
+    
+    if busca:
+        query += " AND (c.codigo_os ILIKE :busca OR c.cliente ILIKE :busca OR c.empresa ILIKE :busca)"
+        params['busca'] = f"%{busca}%"
+    
+    query += " ORDER BY f.data_criacao DESC"
+    
+    # Usa a API do Supabase
+    financeiro = api_get("financeiro", {"order": "data_criacao.desc"})
+    
+    # Busca dados dos chamados
+    for item in financeiro:
+        chamado = api_get("chamados", {"id": f"eq.{item['chamado_id']}", "limit": "1", "select": "codigo_os,cliente,empresa"})
+        if chamado:
+            item['codigo_os'] = chamado[0].get('codigo_os', '')
+            item['cliente'] = chamado[0].get('cliente', '')
+            item['empresa'] = chamado[0].get('empresa', '')
+    
+    return jsonify(financeiro)
+
+
+@app.route('/financeiro/salvar', methods=['POST'])
+def salvar_financeiro():
+    """Salva dados financeiros"""
+    if not session.get('logado'):
+        return jsonify({"erro": "Não autorizado"}), 401
+    
+    data = request.get_json()
+    
+    dados = {
+        "chamado_id": int(data.get('chamado_id')),
+        "valor": float(data.get('valor', 0)),
+        "status_pagamento": data.get('status_pagamento', 'Pendente'),
+        "observacoes": data.get('observacoes', ''),
+        "usuario_criacao": session.get('usuario', 'sistema')
+    }
+    
+    # Se status for Pago, adiciona data de pagamento
+    if dados['status_pagamento'] == 'Pago':
+        dados['data_pagamento'] = datetime.now().isoformat()
+        dados['usuario_pagamento'] = session.get('usuario', 'sistema')
+    
+    financeiro_id = data.get('id')
+    
+    if financeiro_id:
+        # Atualiza
+        api_patch("financeiro", dados, {"id": f"eq.{financeiro_id}"})
+        registrar_log("financeiro_editar", f"Financeiro ID {financeiro_id} atualizado - Status: {dados['status_pagamento']}")
+    else:
+        # Cria novo
+        api_post("financeiro", dados)
+        registrar_log("financeiro_criar", f"Financeiro criado para chamado {dados['chamado_id']}")
+    
+    return jsonify({"sucesso": True}), 200
+
+
+# ==================== ROTAS DE USUÁRIOS ====================
+
+@app.route('/usuarios')
+def pagina_usuarios():
+    """Página de gerenciamento de usuários"""
+    if not session.get('logado'):
+        return redirect(url_for('login'))
+    
+    # Apenas admin pode acessar
+    if session.get('usuario') != 'tecsenior':
+        return redirect(url_for('admin'))
+    
+    usuarios = api_get("usuarios", {"order": "nome.asc"})
+    return render_template('usuarios.html', usuarios=usuarios)
+
+
+@app.route('/usuarios/api_lista')
+def api_lista_usuarios():
+    """API que retorna lista de usuários"""
+    if not session.get('logado'):
+        return jsonify([])
+    
+    usuarios = api_get("usuarios", {"order": "nome.asc"})
+    return jsonify(usuarios)
+
+
+@app.route('/usuarios/salvar', methods=['POST'])
+def salvar_usuario():
+    """Salva usuário (criar/editar)"""
+    if not session.get('logado') or session.get('usuario') != 'tecsenior':
+        return jsonify({"erro": "Apenas admin"}), 403
+    
+    data = request.get_json()
+    
+    dados = {
+        "username": data.get('username', '').strip(),
+        "nome": data.get('nome', '').strip(),
+        "nivel": data.get('nivel', 'tecnico'),
+        "ativo": data.get('ativo', True)
+    }
+    
+    # Se tem senha, atualiza ela
+    if data.get('senha'):
+        dados['senha'] = data.get('senha')  # Em produção, use hash!
+    
+    usuario_id = data.get('id')
+    
+    if usuario_id:
+        api_patch("usuarios", dados, {"id": f"eq.{usuario_id}"})
+        registrar_log("usuario_editar", f"Usuário {dados['username']} editado")
+    else:
+        if not dados['senha']:
+            return jsonify({"erro": "Senha obrigatória"}), 400
+        api_post("usuarios", dados)
+        registrar_log("usuario_criar", f"Usuário {dados['username']} criado")
+    
+    return jsonify({"sucesso": True}), 200
+
+
+@app.route('/usuarios/<int:id>/excluir', methods=['POST'])
+def excluir_usuario(id):
+    """Exclui usuário"""
+    if not session.get('logado') or session.get('usuario') != 'tecsenior':
+        return jsonify({"erro": "Apenas admin"}), 403
+    
+    api_delete("usuarios", {"id": f"eq.{id}"})
+    registrar_log("usuario_excluir", f"Usuário ID {id} excluído")
+    
+    return jsonify({"sucesso": True}), 200
+
+
 # Inicializa
 init_db()
 
