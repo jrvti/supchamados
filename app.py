@@ -896,13 +896,17 @@ def salvar_financeiro():
 @app.route('/usuarios')
 def pagina_usuarios():
     """Página de gerenciamento de usuários"""
+    print(f"🔍 Acessando /usuarios - Usuário: {session.get('usuario')}")
     if not session.get('logado'):
+        print("❌ Não logado")
         return redirect(url_for('login'))
     
     # Apenas admin pode acessar
     if session.get('usuario') != 'tecsenior':
+        print(f"❌ Acesso negado - usuário {session.get('usuario')} não é admin")
         return redirect(url_for('admin'))
     
+    print("✅ Acesso permitido")
     usuarios = api_get("usuarios", {"order": "nome.asc"})
     return render_template('usuarios.html', usuarios=usuarios)
 
