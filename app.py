@@ -928,6 +928,108 @@ def salvar_financeiro():
     return jsonify({"sucesso": True}), 200
 
 
+@app.route('/financeiro/enviar-lembretes', methods=['POST'])
+def enviar_lembretes_pendentes():
+    """Envia lembretes de pagamento pendente via WhatsApp para a Michele (financeiro)"""
+    if not session.get('logado'):
+        return jsonify({"erro": "Não autorizado"}), 401
+    
+    from datetime import datetime, timedelta
+    from whatsapp import enviar_whatsapp
+    
+    # Telefone da Michele (financeiro)
+    TELEFONE_MICHELE = '5511974245546'
+    
+    # Busca todos os financeiros pendentes
+    financeiros = api_get("financeiro", {"status_pagamento": "eq.Pendente", "order": "data_criacao.asc"})
+    
+    if not financeiros:
+        return jsonify({"sucesso": True, "mensagem": "Nenhum pagamento pendente", "enviados": 0}), 200
+    
+    enviados = 0
+    erros = []
+    lista_pendentes = []
+    
+    for fin in financeiros:
+        try:
+            chamado_id = fin.get('chamado_id')
+            valor = fin.get('valor', 0)
+            data_criacao = fin.get('data_criacao', '')
+            
+            # Busca dados do chamado
+            chamado = api_get("chamados", {"id": f"eq.{chamado_id}", "limit": "1", "select": "codigo_os,cliente,empresa,tecnico_responsavel"})
+            if not chamado:
+                erros.append(f"Chamado {chamado_id} não encontrado")
+                continue
+            
+            chamado = chamado[0]
+            
+            # Calcula dias pendentes
+            if data_criacao:
+                try:
+                    data_criacao_dt = datetime.fromisoformat(data_criacao.replace('Z', '+00:00'))
+                    dias_pendentes = (datetime.now() - data_criacao_dt).days
+                except:
+                    dias_pendentes = 0
+            else:
+                dias_pendentes = 0
+            
+            lista_pendentes.append({
+                'codigo_os': chamado.get('codigo_os', ''),
+                'cliente': chamado.get('cliente', ''),
+                'empresa': chamado.get('empresa', ''),
+                'valor': float(valor),
+                'dias_pendentes': dias_pendentes
+            })
+        
+        except Exception as e:
+            erros.append(f"Erro ao processar financeiro {fin.get('id')}: {str(e)}")
+    
+    # Se há pendentes, envia mensagem consolidada para a Michele
+    if lista_pendentes:
+        mensagem = f"⚠️ *LEMBRETE DE PAGAMENTOS PENDENTES*\n\n"
+        mensagem += f"📊 *Total de pendências:* {len(lista_pendentes)}\n\n"
+        mensagem += f"📋 *Lista de pendências:*\n"
+        mensagem += f"{'─' * 40}\n\n"
+        
+        for i, item in enumerate(lista_pendentes, 1):
+            mensagem += f"*{i}. OS:* {item['codigo_os']}\n"
+            mensagem += f"👤 *Cliente:* {item['cliente']}\n"
+            mensagem += f"🏢 *Empresa:* {item['empresa']}\n"
+            mensagem += f"💰 *Valor:* R$ {item['valor']:.2f}\n"
+            mensagem += f"📅 *Pendente há:* {item['dias_pendentes']} dia(s)\n"
+            mensagem += f"{'─' * 40}\n\n"
+        
+        total_valor = sum(item['valor'] for item in lista_pendentes)
+        mensagem += f"💰 *Valor total pendente:* R$ {total_valor:.2f}\n\n"
+        mensagem += f"✅ Por favor, verifique os pagamentos no sistema."
+        
+        # Envia para a Michele
+        resultado = enviar_whatsapp(TELEFONE_MICHELE, mensagem)
+        
+        if resultado:
+            enviados = 1
+            print(f"✅ Lembrete enviado para Michele - {len(lista_pendentes)} pendências")
+        else:
+            erros.append("Falha ao enviar WhatsApp para Michele")
+    
+    mensagem_final = f"Lembrete enviado para Michele: {len(lista_pendentes)} pendências"
+    if erros:
+        mensagem_final += f"\nErros: {len(erros)}"
+        for erro in erros:
+            print(f"❌ {erro}")
+    
+    registrar_log("financeiro_lembretes", f"Enviado lembrete para Michele - {len(lista_pendentes)} pendências")
+    
+    return jsonify({
+        "sucesso": True,
+        "mensagem": mensagem_final,
+        "enviados": enviados,
+        "total_pendentes": len(lista_pendentes),
+        "erros": erros
+    }), 200
+
+
 # ==================== ROTAS DE USUÁRIOS ====================
 
 @app.route('/usuarios')

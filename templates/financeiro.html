@@ -58,6 +58,7 @@
             <h2>💰 Financeiro</h2>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
                 <button id="theme-toggle" class="btn-header">🌙 Modo Escuro</button>
+                <button class="btn-header" onclick="enviarLembretes()" style="background:#22c55e;color:#fff;border-color:#22c55e;">📱 Enviar Lembretes</button>
                 <a href="/admin" class="btn-header">← Painel</a>
             </div>
         </div>
@@ -239,6 +240,28 @@
                 if (resp.ok) { fecharModal(); carregarFinanceiro(); }
                 else alert('Erro ao salvar');
             } catch(e) { alert('Erro ao salvar'); }
+        }
+
+        async function enviarLembretes() {
+            if (!confirm('📱 Enviar lembretes de pagamento pendente para Michele via WhatsApp?')) return;
+            
+            try {
+                const resp = await fetch('/financeiro/enviar-lembretes', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                const dados = await resp.json();
+                
+                if (dados.sucesso) {
+                    alert(`✅ ${dados.mensagem}`);
+                    console.log('Lembretes enviados:', dados);
+                } else {
+                    alert(`❌ Erro: ${dados.erro || 'Erro desconhecido'}`);
+                }
+            } catch(e) {
+                alert('❌ Erro ao enviar lembretes');
+                console.error(e);
+            }
         }
 
         // Carrega dados ao iniciar
