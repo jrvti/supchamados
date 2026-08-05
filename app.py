@@ -810,6 +810,24 @@ def pagina_financeiro():
     if not session.get('logado'):
         print("❌ Não logado")
         return redirect(url_for('login'))
+    
+    # Verifica se há chamado_id na URL para criar registro automático
+    chamado_id = request.args.get('chamado_id')
+    if chamado_id:
+        print(f"📝 Verificando se já existe registro para chamado {chamado_id}")
+        # Verifica se já existe
+        existe = api_get("financeiro", {"chamado_id": f"eq.{chamado_id}", "limit": "1"})
+        if not existe:
+            print(f"✅ Criando registro financeiro para chamado {chamado_id}")
+            api_post("financeiro", {
+                "chamado_id": int(chamado_id),
+                "valor": 0,
+                "status_pagamento": "Pendente",
+                "usuario_criacao": session.get('usuario', 'sistema')
+            })
+        else:
+            print(f"ℹ️ Registro já existe para chamado {chamado_id}")
+    
     print("✅ Acesso permitido")
     return render_template('financeiro.html')
 
