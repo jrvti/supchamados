@@ -101,3 +101,21 @@ INSERT INTO usuarios (username, senha, nome, nivel, ativo) VALUES
 ('tecnicon2', 'S@cCham@d##s2005', 'N2 - Adams', 'tecnico', TRUE),
 ('tecnicon1', 'S@cCham@d##s2005', 'N1 - Maciel', 'tecnico', TRUE)
 ON CONFLICT (username) DO NOTHING;
+
+-- Tabela de configurações do financeiro
+CREATE TABLE IF NOT EXISTS config_financeiro (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    ativo BOOLEAN DEFAULT TRUE,
+    horario_envio VARCHAR(5) DEFAULT '10:00',
+    avisar_pendente BOOLEAN DEFAULT TRUE,
+    avisar_vencido BOOLEAN DEFAULT TRUE,
+    telefone_destino VARCHAR(20) DEFAULT '5511974245546',
+    nome_destino VARCHAR(100) DEFAULT 'Michele',
+    ultimo_envio TIMESTAMP DEFAULT NULL,
+    atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insere configuração padrão se não existir
+INSERT INTO config_financeiro (id, ativo, horario_envio, avisar_pendente, avisar_vencido, telefone_destino, nome_destino)
+VALUES (1, TRUE, '10:00', TRUE, TRUE, '5511974245546', 'Michele')
+ON CONFLICT (id) DO NOTHING;

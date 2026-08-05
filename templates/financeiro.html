@@ -58,7 +58,8 @@
             <h2>💰 Financeiro</h2>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
                 <button id="theme-toggle" class="btn-header">🌙 Modo Escuro</button>
-                <button class="btn-header" onclick="enviarLembretes()" style="background:#22c55e;color:#fff;border-color:#22c55e;">📱 Enviar Lembretes</button>
+                <button class="btn-header" onclick="enviarLembretes()" style="background:#22c55e;color:#fff;border-color:#22c55e;">📱 Enviar Agora</button>
+                <button class="btn-header" onclick="abrirModalConfig()" style="background:#3b82f6;color:#fff;border-color:#3b82f6;">⚙️ Configurar</button>
                 <a href="/admin" class="btn-header">← Painel</a>
             </div>
         </div>
@@ -108,6 +109,39 @@
             </thead>
             <tbody id="corpoFinanceiro"></tbody>
         </table>
+    </div>
+
+    <!-- MODAL DE CONFIGURAÇÃO -->
+    <div class="modal-overlay" id="modalConfig">
+        <div class="modal-box">
+            <h3>⚙️ Configurar Lembretes Automáticos</h3>
+            <label>Ativar Lembretes Automáticos</label>
+            <select id="cfg_ativo">
+                <option value="true">✅ Sim, enviar automaticamente</option>
+                <option value="false">❌ Não, apenas manual</option>
+            </select>
+            <label>Horário de Envio (HH:MM)</label>
+            <input type="time" id="cfg_horario" value="10:00">
+            <label>Avisar Pagamentos Pendentes</label>
+            <select id="cfg_avisar_pendente">
+                <option value="true">✅ Sim</option>
+                <option value="false">❌ Não</option>
+            </select>
+            <label>Avisar Pagamentos Vencidos</label>
+            <select id="cfg_avisar_vencido">
+                <option value="true">✅ Sim</option>
+                <option value="false">❌ Não</option>
+            </select>
+            <label>Nome do Destinatário</label>
+            <input type="text" id="cfg_nome_destino" placeholder="Michele" value="Michele">
+            <label>Telefone do Destinatário (com DDI)</label>
+            <input type="text" id="cfg_telefone_destino" placeholder="5511974245546" value="5511974245546">
+            <div id="cfg_ultimo_envio" style="margin-top:10px;font-size:12px;color:var(--texto-secundario);"></div>
+            <div class="modal-acoes">
+                <button class="btn-cancelar" onclick="fecharModalConfig()">Cancelar</button>
+                <button class="btn-salvar" onclick="salvarConfig()">💾 Salvar Config</button>
+            </div>
+        </div>
     </div>
 
     <!-- MODAL -->
@@ -260,6 +294,63 @@
                 }
             } catch(e) {
                 alert('❌ Erro ao enviar lembretes');
+                console.error(e);
+            }
+        }
+
+        // ====== FUNÇÕES DO MODAL DE CONFIGURAÇÃO ======
+        async function abrirModalConfig() {
+            try {
+                const resp = await fetch('/financeiro/api_config');
+                const config = await resp.json();
+                
+                document.getElementById('cfg_ativo').value = config.ativo ? 'true' : 'false';
+                document.getElementById('cfg_horario').value = config.horario_envio || '10:00';
+                document.getElementById('cfg_avisar_pendente').value = config.avisar_pendente ? 'true' : 'false';
+                document.getElementById('cfg_avisar_vencido').value = config.avisar_vencido ? 'true' : 'false';
+                document.getElementById('cfg_nome_destino').value = config.nome_destino || 'Michele';
+                document.getElementById('cfg_telefone_destino').value = config.telefone_destino || '5511974245546';
+                
+                if (config.ultimo_envio) {
+                    const data = new Date(config.ultimo_envio).toLocaleString('pt-BR');
+                    document.getElementById('cfg_ultimo_envio').textContent = `📅 Último envio: ${data}`;
+                } else {
+                    document.getElementById('cfg_ultimo_envio').textContent = '📅 Nenhum envio realizado ainda';
+                }
+                
+                document.getElementById('modalConfig').classList.add('active');
+            } catch(e) {
+                console.error('Erro ao carregar config:', e);
+                document.getElementById('modalConfig').classList.add('active');
+            }
+        }
+
+        function fecharModalConfig() { document.getElementById('modalConfig').classList.remove('active'); }
+
+        async function salvarConfig() {
+            const dados = {
+                ativo: document.getElementById('cfg_ativo').value === 'true',
+                horario_envio: document.getElementById('cfg_horario').value,
+                avisar_pendente: document.getElementById('cfg_avisar_pendente').value === 'true',
+                avisar_vencido: document.getElementById('cfg_avisar_vencido').value === 'true',
+                nome_destino: document.getElementById('cfg_nome_destino').value,
+                telefone_destino: document.getElementById('cfg_telefone_destino').value
+            };
+
+            try {
+                const resp = await fetch('/financeiro/salvar_config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(dados)
+                });
+                if (resp.ok) {
+                    alert('✅ Configurações salvas com sucesso!');
+                    fecharModalConfig();
+                } else {
+                    alert('❌ Erro ao salvar configurações');
+                }
+            } catch(e) {
+                alert('❌ Erro ao salvar configurações');
                 console.error(e);
             }
         }

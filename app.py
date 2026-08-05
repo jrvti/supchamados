@@ -2,6 +2,7 @@ import os
 import random
 import string
 import io
+from datetime import datetime
 
 import requests
 from flask import Flask, render_template, request, send_file, redirect, url_for, session, jsonify
@@ -10,12 +11,160 @@ from whatsapp import (
     notificar_chamado_atribuido,
     notificar_nova_tarefa_agenda,
     notificar_chamado_finalizado,
-    obter_nome_tecnico
+    obter_nome_tecnico,
+    enviar_whatsapp
 )
 from caldav_calendar import criar_evento_da_agenda
 
 app = Flask(__name__)
 app.secret_key = 'chave_secreta_jrvti_2026'
+
+# ==================== SCHEDULER (LEMBRETE AUTOMÁTICO) ====================
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
+    SCHEDULER_DISPONIVEL = True
+except ImportError:
+    SCHEDULER_DISPONIVEL = False
+    print("⚠️ apscheduler não instalado. Lembretes automáticos desativados.")
+
+
+def enviar_lembrete_automatico():
+    """Função executada pelo scheduler para enviar lembretes automáticos"""
+    try:
+        print(f"⏰ [{datetime.now()}] Verificando lembretes automáticos...")
+        
+        # Busca configuração
+        config = api_get("config_financeiro", {"id": "eq.1", "limit": "1"})
+        if not config:
+            print("❌ Config de financeiro não encontrada")
+            return
+        
+        config = config[0]
+        
+        if not config.get('ativo', True):
+            print("ℹ️ Lembretes automáticos desativados")
+            return
+        
+        # Verifica se já enviou hoje
+        ultimo_envio = config.get('ultimo_envio')
+        if ultimo_envio:
+            try:
+                data_ultimo = datetime.fromisoformat(ultimo_envio.replace('Z', '+00:00'))
+                if data_ultimo.date() == datetime.now().date():
+                    print("ℹ️ Já enviado hoje, pulando...")
+                    return
+            except:
+                pass
+        
+        # Monta lista de status para buscar
+        status_busca = []
+        if config.get('avisar_pendente', True):
+            status_busca.append('Pendente')
+        if config.get('avisar_vencido', True):
+            status_busca.append('Vencido')
+        
+        if not status_busca:
+            print("ℹ️ Nenhum status selecionado para avisar")
+            return
+        
+        # Busca financeiros com os status selecionados
+        status_filter = f"in.({','.join(status_busca)})"
+        financeiros = api_get("financeiro", {"status_pagamento": status_filter, "order": "data_criacao.asc"})
+        
+        if not financeiros:
+            print("ℹ️ Nenhum pagamento pendente/vencido")
+            return
+        
+        lista_pendentes = []
+        for fin in financeiros:
+            chamado_id = fin.get('chamado_id')
+            valor = fin.get('valor', 0)
+            data_criacao = fin.get('data_criacao', '')
+            
+            chamado = api_get("chamados", {"id": f"eq.{chamado_id}", "limit": "1", "select": "codigo_os,cliente,empresa"})
+            if not chamado:
+                continue
+            
+            chamado = chamado[0]
+            
+            dias_pendentes = 0
+            if data_criacao:
+                try:
+                    data_criacao_dt = datetime.fromisoformat(data_criacao.replace('Z', '+00:00'))
+                    dias_pendentes = (datetime.now() - data_criacao_dt).days
+                except:
+                    pass
+            
+            lista_pendentes.append({
+                'codigo_os': chamado.get('codigo_os', ''),
+                'cliente': chamado.get('cliente', ''),
+                'empresa': chamado.get('empresa', ''),
+                'valor': float(valor),
+                'status': fin.get('status_pagamento', ''),
+                'dias_pendentes': dias_pendentes
+            })
+        
+        if not lista_pendentes:
+            print("ℹ️ Nenhum pendência encontrada")
+            return
+        
+        # Monta mensagem
+        mensagem = f"⚠️ *LEMBRETE AUTOMÁTICO DE PAGAMENTOS*\n\n"
+        mensagem += f"📊 *Total de pendências:* {len(lista_pendentes)}\n\n"
+        mensagem += f"📋 *Lista de pendências:*\n"
+        mensagem += f"{'─' * 40}\n\n"
+        
+        for i, item in enumerate(lista_pendentes, 1):
+            mensagem += f"*{i}. OS:* {item['codigo_os']}\n"
+            mensagem += f"👤 *Cliente:* {item['cliente']}\n"
+            mensagem += f"🏢 *Empresa:* {item['empresa']}\n"
+            mensagem += f"💰 *Valor:* R$ {item['valor']:.2f}\n"
+            mensagem += f"📌 *Status:* {item['status']}\n"
+            mensagem += f"📅 *Pendente há:* {item['dias_pendentes']} dia(s)\n"
+            mensagem += f"{'─' * 40}\n\n"
+        
+        total_valor = sum(item['valor'] for item in lista_pendentes)
+        mensagem += f"💰 *Valor total pendente:* R$ {total_valor:.2f}\n\n"
+        mensagem += f"✅ Por favor, verifique os pagamentos no sistema."
+        
+        # Envia WhatsApp
+        telefone = config.get('telefone_destino', '5511974245546')
+        resultado = enviar_whatsapp(telefone, mensagem)
+        
+        if resultado:
+            print(f"✅ Lembrete automático enviado para {config.get('nome_destino', 'Michele')} - {len(lista_pendentes)} pendências")
+            # Atualiza último envio
+            api_patch("config_financeiro", {"ultimo_envio": datetime.now().isoformat()}, {"id": "eq.1"})
+        else:
+            print("❌ Falha ao enviar lembrete automático")
+    
+    except Exception as e:
+        print(f"❌ Erro no lembrete automático: {e}")
+
+
+def configurar_scheduler():
+    """Configura o scheduler com base nas configurações do banco"""
+    if not SCHEDULER_DISPONIVEL:
+        return None
+    
+    try:
+        scheduler = BackgroundScheduler()
+        
+        # Roda a cada minuto para verificar se é hora de enviar
+        scheduler.add_job(
+            func=enviar_lembrete_automatico,
+            trigger='cron',
+            minute='*',  # Verifica todo minuto
+            id='lembrete_financeiro',
+            replace_existing=True
+        )
+        
+        scheduler.start()
+        print("✅ Scheduler de lembretes automáticos iniciado!")
+        return scheduler
+    except Exception as e:
+        print(f"❌ Erro ao iniciar scheduler: {e}")
+        return None
 
 # === CONFIGURAÇÃO SUPABASE ===
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
@@ -1105,8 +1254,50 @@ def excluir_usuario(id):
     return jsonify({"sucesso": True}), 200
 
 
+# ==================== ROTAS DE CONFIG FINANCEIRO ====================
+
+@app.route('/financeiro/api_config')
+def api_config_financeiro():
+    """Retorna configurações do financeiro"""
+    if not session.get('logado'):
+        return jsonify({})
+    
+    config = api_get("config_financeiro", {"id": "eq.1", "limit": "1"})
+    if config:
+        return jsonify(config[0])
+    return jsonify({})
+
+
+@app.route('/financeiro/salvar_config', methods=['POST'])
+def salvar_config_financeiro():
+    """Salva configurações do financeiro"""
+    if not session.get('logado'):
+        return jsonify({"erro": "Não autorizado"}), 401
+    
+    data = request.get_json()
+    
+    dados = {
+        "ativo": data.get('ativo', True),
+        "horario_envio": data.get('horario_envio', '10:00'),
+        "avisar_pendente": data.get('avisar_pendente', True),
+        "avisar_vencido": data.get('avisar_vencido', True),
+        "telefone_destino": data.get('telefone_destino', '5511974245546'),
+        "nome_destino": data.get('nome_destino', 'Michele'),
+        "atualizado_em": datetime.now().isoformat()
+    }
+    
+    # Atualiza config (sempre id=1)
+    api_patch("config_financeiro", dados, {"id": "eq.1"})
+    registrar_log("config_financeiro", f"Config atualizada - Horário: {dados['horario_envio']}, Ativo: {dados['ativo']}")
+    
+    return jsonify({"sucesso": True}), 200
+
+
 # Inicializa
 init_db()
+
+# Inicia scheduler de lembretes automáticos
+scheduler = configurar_scheduler()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
