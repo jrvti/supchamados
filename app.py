@@ -806,8 +806,11 @@ def excluir_evento(id):
 @app.route('/financeiro')
 def pagina_financeiro():
     """Página de financeiro"""
+    print(f"🔍 Acessando /financeiro - Usuário: {session.get('usuario')}")
     if not session.get('logado'):
+        print("❌ Não logado")
         return redirect(url_for('login'))
+    print("✅ Acesso permitido")
     return render_template('financeiro.html')
 
 
