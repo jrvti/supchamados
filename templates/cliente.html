@@ -17,14 +17,15 @@
         textarea { resize:vertical; height:100px; }
         .flex-equipamento { display:flex; gap:10px; }
         .flex-equipamento div { flex:1; }
-        .overlay-entrada { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.35); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:25px; transition:opacity .4s ease; }
+        .overlay-entrada { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); z-index:9999; display:flex; align-items:center; justify-content:center; transition:opacity .4s ease; }
         .overlay-entrada.oculto { opacity:0; pointer-events:none; }
-        .overlay-logo { font-size:42px; font-weight:bold; color:#ffffff; text-transform:uppercase; letter-spacing:3px; text-shadow:0 2px 12px rgba(0,0,0,0.6); text-align:center; }
-        .overlay-sub { font-size:14px; color:rgba(255,255,255,0.85); text-align:center; text-shadow:0 1px 6px rgba(0,0,0,0.6); margin-top:-15px; }
-        .overlay-botoes { display:flex; flex-direction:column; gap:15px; width:260px; }
-        .btn-flutuante { padding:15px 20px; font-size:15px; font-weight:bold; text-transform:uppercase; text-decoration:none; text-align:center; cursor:pointer; border:2px solid #ffffff; color:#ffffff; background:rgba(255,255,255,0.12); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); transition:background .2s,color .2s; }
+        .overlay-card { background:#ffffff; border:3px solid #000000; box-shadow:10px 10px 0 rgba(0,0,0,0.6); padding:40px 35px; max-width:400px; width:90%; display:flex; flex-direction:column; align-items:center; gap:20px; }
+        .overlay-logo { font-size:40px; font-weight:bold; color:#000000; text-transform:uppercase; letter-spacing:3px; text-align:center; }
+        .overlay-sub { font-size:15px; color:#333333; text-align:center; font-weight:bold; margin-top:-12px; }
+        .overlay-botoes { display:flex; flex-direction:column; gap:15px; width:100%; }
+        .btn-flutuante { padding:16px 20px; font-size:17px; font-weight:bold; text-transform:uppercase; text-decoration:none; text-align:center; cursor:pointer; border:2px solid #000000; color:#ffffff; background:#000000; transition:background .2s,color .2s; }
         .btn-flutuante:hover { background:#ffffff; color:#000000; }
-        @media (max-width:480px){ .overlay-logo{font-size:30px;} .overlay-botoes{width:220px;} }
+        @media (max-width:480px){ .overlay-logo{font-size:30px;} .overlay-card{padding:30px 20px;} }
         .flex-botoes { display:flex; gap:10px; margin-top:5px; }
         .btn-enviar { flex:2; background:var(--texto-principal); color:var(--bg-container); padding:12px 8px; border:none; font-size:13px; font-weight:bold; text-transform:uppercase; border:2px solid var(--border-cor); cursor:pointer; }
         .btn-enviar:hover { background:var(--bg-container); color:var(--texto-principal); }
@@ -35,11 +36,13 @@
 <body>
     <!-- TELA DE ENTRADA (overlay com blur) -->
     <div class="overlay-entrada" id="overlayEntrada">
-        <div class="overlay-logo">JRV-TI</div>
-        <div class="overlay-sub">Suporte de TI e Sistemas de Monitoramento / Segurança</div>
-        <div class="overlay-botoes">
-            <button class="btn-flutuante" onclick="abrirChamado()">📋 Abrir Chamado</button>
-            <a href="/login" class="btn-flutuante">🔑 Fazer Login</a>
+        <div class="overlay-card">
+            <div class="overlay-logo">JRV-TI</div>
+            <div class="overlay-sub">Suporte de TI e Sistemas de Monitoramento / Segurança</div>
+            <div class="overlay-botoes">
+                <button class="btn-flutuante" onclick="abrirChamado()">📋 Abrir Chamado</button>
+                <a href="/login" class="btn-flutuante">🔑 Fazer Login</a>
+            </div>
         </div>
     </div>
     <div class="container">
