@@ -17,8 +17,11 @@
         textarea { resize:vertical; height:100px; }
         .flex-equipamento { display:flex; gap:10px; }
         .flex-equipamento div { flex:1; }
-        .btn-enviar { width:100%; background:var(--texto-principal); color:var(--bg-container); padding:12px; border:none; font-size:15px; font-weight:bold; text-transform:uppercase; border:2px solid var(--border-cor); cursor:pointer; margin-top:5px; }
+        .flex-botoes { display:flex; gap:10px; margin-top:5px; }
+        .btn-enviar { flex:2; background:var(--texto-principal); color:var(--bg-container); padding:12px 8px; border:none; font-size:13px; font-weight:bold; text-transform:uppercase; border:2px solid var(--border-cor); cursor:pointer; }
         .btn-enviar:hover { background:var(--bg-container); color:var(--texto-principal); }
+        .btn-login { flex:1; background:var(--bg-container); color:var(--texto-principal); padding:12px 8px; font-size:11px; font-weight:bold; text-transform:uppercase; border:2px solid var(--border-cor); cursor:pointer; text-decoration:none; display:flex; align-items:center; justify-content:center; text-align:center; }
+        .btn-login:hover { background:var(--texto-principal); color:var(--bg-container); }
     </style>
 </head>
 <body>
@@ -55,8 +58,10 @@
             <label for="fotos">Anexar Fotos (opcional):</label>
             <input type="file" id="fotos" name="fotos" multiple accept="image/*">
             <div style="font-size:11px;color:var(--texto-secundario);margin-top:-10px;margin-bottom:15px;">📸 Tire fotos do equipamento para ajudar no diagnóstico</div>
-            <button type="submit" class="btn-enviar">Enviar Ordem de Serviço</button>
-            <div style="text-align:center;margin-top:20px;"><a href="/login" style="color:var(--texto-secundario);font-size:12px;text-decoration:underline;">Você é um técnico? Entre aqui.</a></div>
+            <div class="flex-botoes">
+                <button type="submit" class="btn-enviar">Enviar Ordem de Serviço</button>
+                <a href="/login" class="btn-login">🔑 Fazer Login</a>
+            </div>
         </form>
     </div>
     <script>
