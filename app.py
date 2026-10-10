@@ -615,6 +615,31 @@ def finalizar_chamado_rat(id):
     if not session.get('logado'):
         return jsonify({"erro": "Não autorizado"}), 401
 
+    # RAT AVULSA (id == 0): cria um novo registro de chamado no banco
+    # para que ele apareça em "fechados" e o PDF não sobrescreva RAT_OS_0.pdf
+    if id == 0:
+        cliente = request.form.get('cliente', '').strip() or 'Não informado'
+        codigo_os = request.form.get('codigo_os', '').strip() or gerar_codigo_os()
+        dados_novo = {
+            "codigo_os": codigo_os,
+            "cliente": cliente,
+            "empresa": request.form.get('empresa', '').strip() or cliente,
+            "whatsapp": request.form.get('whatsapp', '').strip() or 'Não informado',
+            "descricao": request.form.get('descricao', '').strip() or 'RAT avulsa',
+            "endereco": request.form.get('endereco', '').strip(),
+            "marca": request.form.get('marca', '').strip() or 'Não informado',
+            "modelo": request.form.get('modelo', '').strip() or 'Não informado',
+            "categoria": "RAT Avulsa",
+            "urgencia": "Média",
+            "status": "Finalizado",
+            "tecnico_responsavel": session.get('usuario', 'Nenhum')
+        }
+        resultado = api_post("chamados", dados_novo)
+        if not resultado or not isinstance(resultado, list) or not resultado:
+            return jsonify({"sucesso": False, "mensagem": "Erro ao criar registro do chamado. O código da O.S. pode estar duplicado."}), 500
+        id = resultado[0].get('id', 0)
+        registrar_log("finalizacao", f"RAT avulsa criada e arquivada como OS {codigo_os}", id)
+
     pdf_salvo = False
     if 'pdf' in request.files and SUPABASE_URL and SUPABASE_SERVICE_KEY:
         arquivo_pdf = request.files['pdf']
@@ -637,7 +662,7 @@ def finalizar_chamado_rat(id):
     else:
         msg += " (PDF nao foi salvo - verifique config)"
 
-    return jsonify({"sucesso": True, "mensagem": msg}), 200
+    return jsonify({"sucesso": True, "mensagem": msg, "id": id}), 200
 
 
 @app.route('/baixar_rat/<int:id>')

@@ -353,6 +353,17 @@
         const dadosForm = new FormData();
         dadosForm.append('pdf', new Blob([bytes], { type: 'application/pdf' }), 'rat_firmada.pdf');
 
+        // Envia também os dados do formulário (usados na RAT avulsa p/ criar o registro no banco)
+        const pegar = id => { const el = document.getElementById('val_' + id); return el ? el.value.trim() : ''; };
+        dadosForm.append('cliente', pegar('cliente'));
+        dadosForm.append('codigo_os', pegar('n_ordem'));
+        dadosForm.append('empresa', pegar('cliente'));
+        dadosForm.append('whatsapp', pegar('telefones'));
+        dadosForm.append('endereco', pegar('endereco'));
+        dadosForm.append('marca', pegar('marca'));
+        dadosForm.append('modelo', pegar('modelo'));
+        dadosForm.append('descricao', pegar('defeito') || pegar('detalhamentos') || pegar('observacoes') || 'RAT avulsa');
+
         fetch('/chamado/{{ chamado.id }}/finalizar', { method: 'POST', body: dadosForm })
         .then(res => res.json())
         .then(dados => {
